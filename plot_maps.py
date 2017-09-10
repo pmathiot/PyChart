@@ -90,7 +90,11 @@ if proj_name=='gulf_stream'         :
     XY_lim=[-4.250e6,1.115e5,-1.546e6,2.8155e6]
     lbad=True
     joffset=-1
-
+if proj_name=='ross':
+    proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0)
+    XY_lim=[-5.115e5, 6.499e5, 4.591e5, 1.6205e6]
+    lbad=True
+    joffset=-2
 
 # get file and title list and sanity check
 cfile_lst  = args.f[:]
