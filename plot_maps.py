@@ -6,21 +6,36 @@ import cartopy
 import matplotlib.pyplot as plt
 import matplotlib as matplotlib
 import matplotlib.colors as colors
+from matplotlib.colors import Normalize
 import cartopy.crs as ccrs
 import sys
 from cartopy.feature import LAND
 matplotlib.use('GTKAgg') 
 
+class PiecewiseNorm(Normalize):
+    def __init__(self, levels, clip=False):
+        # the input levels
+        self._levels = np.sort(levels)
+        # corresponding normalized values between 0 and 1
+        self._normed = np.linspace(0, 1, len(levels))
+        Normalize.__init__(self, None, None, clip)
+
+    def __call__(self, value, clip=None):
+        # linearly interpolate to get the normalized value
+        return np.ma.masked_array(np.interp(value, self._levels, self._normed))
+
+# add write of the text file for the option
+
 # define argument
 parser = argparse.ArgumentParser()
 parser.add_argument("-f"  , metavar='file_name'     , help="names of input files"           , type=str  , nargs="+", required=True )
-parser.add_argument("-v"  , metavar='var_name'      , help="variable list"                  , type=str  , nargs=1  , required=True )
+parser.add_argument("-v"  , metavar='var_name'      , help="variable list"                  , type=str  , nargs="+", required=True )
 parser.add_argument("-r"  , metavar='file_ref'      , help="names of ref   files"           , type=str  , nargs=1  , required=False)
 parser.add_argument("-vr" , metavar='reference var_name', help="reference variable name"    , type=str  , nargs=1  , required=False)
 parser.add_argument("-ft" , metavar='figure title'  , help="title of the whole figure"      , type=str  , nargs=1  , required=False)
 parser.add_argument("-fid", metavar='runid'         , help="runids (title + mesh name)"     , type=str  , nargs="+", required=False)
 parser.add_argument("-rid", metavar='refid'         , help="refids (title + mesh name)"     , type=str  , nargs=1  , required=False)
-parser.add_argument("-c"  , metavar='color range'   , help="color range"                    , type=float, nargs=3  , required=True )
+parser.add_argument("-c"  , metavar='color range'   , help="color range"                    , type=float, nargs="+", required=True )
 parser.add_argument("-s"  , metavar='subplot disposition' , help="subplot disposition (ixj)", type=str  , nargs=1  , required=True )
 parser.add_argument("-cm" , metavar='color map name', help="color mask name"                , type=str  , nargs=1  , required=False)
 parser.add_argument("-o"  , metavar='output name'   , help="output name"                    , type=str  , nargs=1  , required=False)
@@ -92,7 +107,7 @@ if proj_name=='gulf_stream'         :
     joffset=-1
 if proj_name=='ross':
     proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0)
-    XY_lim=[-5.115e5, 6.499e5, 4.591e5, 1.6205e6]
+    XY_lim=[-6.67e5,8.33e5,1.05e6,2.47e6]
     lbad=True
     joffset=-2
 
@@ -115,11 +130,9 @@ else:
 # get var
 cvar_lst = args.v[:]
 nvar = len(cvar_lst)
-
-#loop over file
-# for ivar in range(0,nvar):
-ivar=0
-cvar = cvar_lst[ivar]
+cvar = cvar_lst[0]
+if nvar == 1:
+    cvar_lst=[cvar]*nfile
 
 # deals with ref file
 if args.rid:
@@ -180,11 +193,9 @@ else:
 
 
 # initialisation
-nplt = nfile * nvar
+nplt = nfile
 ax = [None] * nplt 
 bc = [None] * nplt
-
-plt.figure(figsize=np.array([210,210]) / 25.4)
 
 # get whole figure title
 if args.ft:
@@ -194,20 +205,25 @@ else:
 
 # get color limit
 if args.c:
-    rmin = args.c[0] 
-    rmax = args.c[1] 
-    rint = args.c[2]
+    if len(args.c)==3 :
+        rmin = args.c[0] 
+        rmax = args.c[1] 
+        rint = args.c[2]
+        vlevel= np.arange(rmin,rmax+0.000001,rint)
+    else:
+        vlevel=args.c[:]
 else:
     rmax = np.max(var2dm - ref2dm)
     rmin = np.min(var2dm - ref2dm)
     rint = 20
+    vlevel= np.arange(rmin,rmax+0.000001,rint)
 
 # get color bar
-vlevel= np.arange(rmin,rmax+0.000001,rint)
 if args.cm:
     cmap  = plt.get_cmap(args.cm[0],len(vlevel)-1)
 else:
     cmap  = plt.get_cmap('RdBu_r',len(vlevel)-1)
+
 if lbad:
     cmap.set_bad('0.75', 1.0)
 else:
@@ -217,43 +233,54 @@ else:
 csub = args.s[0].split('x')
 nisplt= int(csub[ 0])
 njsplt= int(csub[-1])
-if nisplt*njsplt < nfile*nvar:
+if nisplt*njsplt < nfile:
+    print nisplt*njsplt,' panels'
+    print nfile*nvar, ' plot asked'
     print ' number subplot lower than the number of plot asked (nfile*nvar) '
     sys.exit(1)
+
+# load land feature
+isf_features   = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_lines', '50m',facecolor='none',edgecolor='k')
+coast_features = cartopy.feature.NaturalEarthFeature('physical', 'coastline'                  , '50m',facecolor='0.75',edgecolor='k')
+
+# define figure dimension
+plt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
+
 
 for ifile in range(0,nfile):
 
     if args.fid:
     # deals with mesh mask
         if args.fid[ifile] == 'OBS':
-           ncid  = Dataset(cfile_lst[ifile])
-           lat2d = ncid.variables['lat'][:]
-           lon2d = ncid.variables['lon'][:]
+           ncid_msh = Dataset(cfile_lst[ifile])
+           lat2d = ncid_msh.variables['lat'][:]
+           lon2d = ncid_msh.variables['lon'][:]
            msk = 1
         else:
-           ncid  = Dataset('mesh_mask_'+args.fid[ifile]+'.nc')
-           lat2d = ncid.variables['gphit'][0,0:joffset,:]
-           zlon2d = ncid.variables['glamt'][0,0:joffset,:]
+           ncid_msh = Dataset('mesh_hgr_'+args.fid[ifile]+'.nc')
+           lat2d  = ncid_msh.variables['gphit'][0:joffset,:]
+           zlon2d = ncid_msh.variables['glamt'][0:joffset,:]
            lon2d=zlon2d.copy()
            for i,start in enumerate(np.argmax(np.abs(np.diff(zlon2d)) > 180, axis=1)):
                lon2d[i, start+1:] += 360
-           msk = ncid.variables['tmask'][0,jk,0:joffset,:]
-        ncid.close()
+           ncid_msk = Dataset('mask_'+args.fid[ifile]+'.nc')
+           msk = ncid_msk.variables['tmask'][0,jk,0:joffset,:]
+        ncid_msk.close()
     else:
-        ncid  = Dataset(cfile_lst[ifile])
-        lat2d = ncid.variables['nav_lat'][0:joffset,:]
-        zlon2d = ncid.variables['nav_lon'][0:joffset,:]
+        ncid_msh  = Dataset(cfile_lst[ifile])
+        lat2d = ncid_msh.variables['nav_lat'][0:joffset,:]
+        zlon2d = ncid_msh.variables['nav_lon'][0:joffset,:]
         lon2d=zlon2d.copy()
         for i,start in enumerate(np.argmax(np.abs(np.diff(zlon2d)) > 180, axis=1)):
             lon2d[i, start+1:] += 360
         msk = 1
-        ncid.close()
+    ncid_msh.close()
 
 
     # load input file
-    print ' processing '+cfile_lst[ifile]+' '+cvar
+    print ' processing '+cfile_lst[ifile]+' '+cvar_lst[ifile]
     ncid   = Dataset(cfile_lst[ifile])
-    var    = ncid.variables[cvar   ]
+    var    = ncid.variables[cvar_lst[ifile]]
     if len(var.shape)==2 : 
         print ' 2d variable XY'
         var2d=var[0:joffset,:] 
@@ -265,7 +292,7 @@ for ifile in range(0,nfile):
         var2d=var[0,jk,0:joffset,:]
     else:
         print var.shape
-        print cvar+' contains '+str(len(var.shape))+' dimensions' 
+        print cvar_lst[ifile]+' contains '+str(len(var.shape))+' dimensions' 
         print ' shape unknown, exit '
         sys.exit(1)
     var2dm = ma.masked_where(msk*var2d==0.0,var2d)
@@ -288,14 +315,19 @@ for ifile in range(0,nfile):
     else:
         print ' plot limit unknown, exit'
         sys.exit(1)
-    ax[ifile].coastlines(resolution='50m',linewidth=0.5)
+    ax[ifile].add_feature(coast_features,linewidth=0.5)
+    ax[ifile].add_feature(isf_features,linewidth=0.5)
     ax[ifile].add_feature(cartopy.feature.LAKES,edgecolor='k',linewidth=0.5,facecolor='none')
     ax[ifile].gridlines()
     ax[ifile].set_title(ctitle_lst[ifile]+ref_title)
 
     # make plot
    # could be an option to not plot the map
-    pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,vmin=rmin,vmax=rmax,cmap=cmap,transform=ccrs.PlateCarree(),rasterized=True)
+    print vlevel
+    #pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,vmin=vlevel[0],vmax=vlevel[-1],cmap=cmap,norm=PiecewiseNorm(vlevel),transform=ccrs.PlateCarree(),rasterized=True)
+    norm = colors.BoundaryNorm(boundaries=vlevel, ncolors=len(vlevel)-1)
+    pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
+    #pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,cmap=cmap,norm=PiecewiseNorm(vlevel),transform=ccrs.PlateCarree(),rasterized=True)
     # could be an option to add a contour over the map
     if args.cntf:
         cntfile_lst=args.cntf[:]
@@ -346,9 +378,9 @@ for ifile in range(0,nfile):
     y1=np.max([y1,bc[ifile].y1])
 
 cax = plt.axes([x1+0.02, y0, 0.02, y1-y0])
-cbar= plt.colorbar(pcol, cax=cax, extend='both',)
+cbar= plt.colorbar(pcol, cax=cax, format='%4.2f', extend='both',)
 cbar.set_ticks(vlevel)
-cbar.set_ticklabels(vlevel)
+#cbar.set_ticklabels(vlevel)
 cbar.ax.tick_params(labelsize=14)
 
 # put whole figure title
