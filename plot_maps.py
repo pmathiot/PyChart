@@ -12,17 +12,76 @@ import sys
 from cartopy.feature import LAND
 matplotlib.use('GTKAgg') 
 
-class PiecewiseNorm(Normalize):
-    def __init__(self, levels, clip=False):
-        # the input levels
-        self._levels = np.sort(levels)
-        # corresponding normalized values between 0 and 1
-        self._normed = np.linspace(0, 1, len(levels))
-        Normalize.__init__(self, None, None, clip)
+def def_cmap_lvl(bnds):
+# get color limit
+    if bnds:
+        if len(bnds)==3 :
+            lvlmin = bnds[0]
+            lvlmax = bnds[1]
+            lvlint = bnds[2]
+            lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
+        else:
+            lvl=bnds[:]
+    else:
+        print ' Need definition of levels (min,max,int) at least.'
+        sys.exit(42)
 
-    def __call__(self, value, clip=None):
-        # linearly interpolate to get the normalized value
-        return np.ma.masked_array(np.interp(value, self._levels, self._normed))
+    return lvl
+
+
+def def_cmap(cm,lvl):
+# get color bar
+    nlvl=len(lvl)
+    if cm:
+        cmap  = plt.get_cmap(cm[0],nlvl-1)
+    else:
+        cmap  = plt.get_cmap('RdBu_r',nlvl-1)
+
+    if lbad:
+        cmap.set_bad('0.75', 1.0)
+    else:
+        cmap.set_under('0.75', 1.0)
+
+    norm = colors.BoundaryNorm(boundaries=lvl, ncolors=nlvl-1)
+
+    return cmap,norm
+
+def get_land_features():
+# get isf groiunding line, ice shelf front and coastline
+    isf_features   = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_lines', '50m',facecolor='none',edgecolor='k')
+    coast_features = cartopy.feature.NaturalEarthFeature('physical', 'coastline'                  , '50m',facecolor='0.75',edgecolor='k')
+
+    return isf_features, coast_features
+
+def get_plt_bound(ax_lst,nplt):
+# get plot corner position
+    bc_lst = [None] * nplt
+    x0=1.0; x1=0.0; y0=1.0; y1=0.0
+    for iplt in range(0,nplt):
+        ax_lst[iplt].apply_aspect()
+        bc_lst[iplt] = ax[iplt].get_position()
+        x0=np.min([x0,bc_lst[iplt].x0])
+        x1=np.max([x1,bc_lst[iplt].x1])
+        y0=np.min([y0,bc_lst[iplt].y0])
+        y1=np.max([y1,bc_lst[iplt].y1])
+
+    return x0, y0, x1, y1
+
+def draw_colorbar(plt,cb,lvl,x0,y0,x1,y1):
+# draw colorbar
+    cax  = plt.axes([x1+0.02, y0, 0.02, y1-y0])
+    cbar = plt.colorbar(cb, cax=cax, format='%4.2f', extend='both',)
+    cbar.set_ticks(lvl)
+    cbar.ax.tick_params(labelsize=14)
+
+def write_figure_title(ctitle,x0,y0,x1,y1):
+# put whole figure title
+    tax = plt.axes([x0,y1,x1-x0,1-y1])
+    tax.text(0.5,0.5,ctitle,
+            horizontalalignment='center',
+            verticalalignment  ='center',
+            fontsize=16)
+    tax.set_axis_off()
 
 # add write of the text file for the option
 
@@ -41,7 +100,6 @@ parser.add_argument("-cm" , metavar='color map name', help="color mask name"    
 parser.add_argument("-o"  , metavar='output name'   , help="output name"                    , type=str  , nargs=1  , required=False)
 parser.add_argument("-p"  , metavar='projection'    , help="projection"                     , type=str  , nargs=1  , required=False)
 parser.add_argument("-k"  , metavar='vertical level', help="level in fortran convention"    , type=int  , nargs=1  , required=False)
-#parser.add_argument("-b"  , metavar='vertical level', help="level in fortran convention"    , type=int  , nargs=1  , required=False)
 parser.add_argument("--cntf", metavar='contour file' , help="contour file list"                , type=str  , nargs="+", required=False)
 parser.add_argument("--cntv", metavar='contour var ' , help="contour variable"                 , type=str  , nargs=1  , required=False)
 parser.add_argument("--cntreff", metavar='contour ref file' , help="contour reference file"    , type=str  , nargs=1  , required=False)
@@ -58,6 +116,11 @@ else:
 if proj_name=='south_stereo' : 
     proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
     latlon_lim=[-180, 180, -90, -60]
+    lbad=True
+    joffset=-2
+if proj_name=='ant' : 
+    proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
+    latlon_lim=[-180, 180, -90, -65]
     lbad=True
     joffset=-2
 if proj_name=='global' :
@@ -195,7 +258,6 @@ else:
 # initialisation
 nplt = nfile
 ax = [None] * nplt 
-bc = [None] * nplt
 
 # get whole figure title
 if args.ft:
@@ -204,30 +266,13 @@ else:
     fig_title=cvar
 
 # get color limit
-if args.c:
-    if len(args.c)==3 :
-        rmin = args.c[0] 
-        rmax = args.c[1] 
-        rint = args.c[2]
-        vlevel= np.arange(rmin,rmax+0.000001,rint)
-    else:
-        vlevel=args.c[:]
-else:
-    rmax = np.max(var2dm - ref2dm)
-    rmin = np.min(var2dm - ref2dm)
-    rint = 20
-    vlevel= np.arange(rmin,rmax+0.000001,rint)
+vlevel = def_cmap_lvl(args.c)
 
 # get color bar
-if args.cm:
-    cmap  = plt.get_cmap(args.cm[0],len(vlevel)-1)
-else:
-    cmap  = plt.get_cmap('RdBu_r',len(vlevel)-1)
+cmap, norm = def_cmap(args.cm,vlevel)
 
-if lbad:
-    cmap.set_bad('0.75', 1.0)
-else:
-    cmap.set_under('0.75', 1.0)
+# load land feature
+isf_features, coast_features = get_land_features()
 
 # get subplot disposition
 csub = args.s[0].split('x')
@@ -239,13 +284,8 @@ if nisplt*njsplt < nfile:
     print ' number subplot lower than the number of plot asked (nfile*nvar) '
     sys.exit(1)
 
-# load land feature
-isf_features   = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_lines', '50m',facecolor='none',edgecolor='k')
-coast_features = cartopy.feature.NaturalEarthFeature('physical', 'coastline'                  , '50m',facecolor='0.75',edgecolor='k')
-
 # define figure dimension
 plt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
-
 
 for ifile in range(0,nfile):
 
@@ -323,11 +363,8 @@ for ifile in range(0,nfile):
 
     # make plot
    # could be an option to not plot the map
-    print vlevel
-    #pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,vmin=vlevel[0],vmax=vlevel[-1],cmap=cmap,norm=PiecewiseNorm(vlevel),transform=ccrs.PlateCarree(),rasterized=True)
-    norm = colors.BoundaryNorm(boundaries=vlevel, ncolors=len(vlevel)-1)
     pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
-    #pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,cmap=cmap,norm=PiecewiseNorm(vlevel),transform=ccrs.PlateCarree(),rasterized=True)
+
     # could be an option to add a contour over the map
     if args.cntf:
         cntfile_lst=args.cntf[:]
@@ -363,33 +400,17 @@ for ifile in range(0,nfile):
             ax[ifile].contour(lon2dm,lat2dm,cntref2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='gray',linewidth=0.5)
 
 # remove extra white space
-print njsplt
 hpx=0.06+0.035*njsplt
 plt.subplots_adjust(left=0.01,right=0.89, bottom=0.01, top=0.89, wspace=0.1, hspace=hpx)
 
 # put common colorbar
-x0=1.0; x1=0.0; y0=1.0; y1=0.0
-for ifile in range(0,nfile):
-    ax[ifile].apply_aspect()
-    bc[ifile] = ax[ifile].get_position()
-    x0=np.min([x0,bc[ifile].x0])
-    x1=np.max([x1,bc[ifile].x1])
-    y0=np.min([y0,bc[ifile].y0])
-    y1=np.max([y1,bc[ifile].y1])
+xl, yb, xr, yt = get_plt_bound(ax, nfile) # left, bottom, right, top
 
-cax = plt.axes([x1+0.02, y0, 0.02, y1-y0])
-cbar= plt.colorbar(pcol, cax=cax, format='%4.2f', extend='both',)
-cbar.set_ticks(vlevel)
-#cbar.set_ticklabels(vlevel)
-cbar.ax.tick_params(labelsize=14)
+# add_colorbar
+draw_colorbar(plt,pcol,vlevel,xl,yb,xr,yt)
 
 # put whole figure title
-tax = plt.axes([x0,y1,x1-x0,1-y1])
-tax.text(0.5,0.5,fig_title, 
-        horizontalalignment='center',
-        verticalalignment  ='center',
-        fontsize=16)
-tax.set_axis_off()
+write_figure_title(fig_title,xl,yb,xr,yt)
 
 # get figure nname
 if args.o:
@@ -402,4 +423,3 @@ plt.savefig(coutput_name, format='png', dpi=300)
 
 # show figure
 plt.show()
-
