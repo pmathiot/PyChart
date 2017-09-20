@@ -119,28 +119,32 @@ def get_k_level(klvl, zlvl, cfile, cvar):
            
 # add write of the text file for the option
 
+def get_argument():
 # define argument
-parser = argparse.ArgumentParser()
-parser.add_argument("-f"  , metavar='file_name'     , help="names of input files"           , type=str  , nargs="+", required=True )
-parser.add_argument("-v"  , metavar='var_name'      , help="variable list"                  , type=str  , nargs="+", required=True )
-parser.add_argument("-r"  , metavar='file_ref'      , help="names of ref   files"           , type=str  , nargs=1  , required=False)
-parser.add_argument("-vr" , metavar='reference var_name', help="reference variable name"    , type=str  , nargs=1  , required=False)
-parser.add_argument("-ft" , metavar='figure title'  , help="title of the whole figure"      , type=str  , nargs=1  , required=False)
-parser.add_argument("-fid", metavar='runid'         , help="runids (title + mesh name)"     , type=str  , nargs="+", required=False)
-parser.add_argument("-rid", metavar='refid'         , help="refids (title + mesh name)"     , type=str  , nargs=1  , required=False)
-parser.add_argument("-c"  , metavar='color range'   , help="color range"                    , type=float, nargs="+", required=True )
-parser.add_argument("-s"  , metavar='subplot disposition' , help="subplot disposition (ixj)", type=str  , nargs=1  , required=True )
-parser.add_argument("-cm" , metavar='color map name', help="color mask name"                , type=str  , nargs=1  , required=False)
-parser.add_argument("-o"  , metavar='output name'   , help="output name"                    , type=str  , nargs=1  , required=False)
-parser.add_argument("-p"  , metavar='projection'    , help="projection"                     , type=str  , nargs=1  , required=False)
-parser.add_argument("-k"  , metavar='vertical level', help="level in fortran convention"    , type=int  , nargs=1  , required=False)
-parser.add_argument("-z"  , metavar='depth of the map', help="depth of the map"             , type=float, nargs=1  , required=False)
-parser.add_argument("--cntf", metavar='contour file' , help="contour file list"                , type=str  , nargs="+", required=False)
-parser.add_argument("--cntv", metavar='contour var ' , help="contour variable"                 , type=str  , nargs=1  , required=False)
-parser.add_argument("--cntreff", metavar='contour ref file' , help="contour reference file"    , type=str  , nargs=1  , required=False)
-parser.add_argument("--cntrefv", metavar='contour ref var ' , help="contour reference variable", type=str  , nargs=1  , required=False)
-parser.add_argument("--cntlev", metavar='contour level', help="contour level (1 value at this stage)", type=float  , nargs=1  , required=False)
-args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f"  , metavar='file_name'     , help="names of input files"           , type=str  , nargs="+", required=True )
+    parser.add_argument("-v"  , metavar='var_name'      , help="variable list"                  , type=str  , nargs="+", required=True )
+    parser.add_argument("-r"  , metavar='file_ref'      , help="names of ref   files"           , type=str  , nargs=1  , required=False)
+    parser.add_argument("-vr" , metavar='reference var_name', help="reference variable name"    , type=str  , nargs=1  , required=False)
+    parser.add_argument("-ft" , metavar='figure title'  , help="title of the whole figure"      , type=str  , nargs=1  , required=False)
+    parser.add_argument("-fid", metavar='runid'         , help="runids (title + mesh name)"     , type=str  , nargs="+", required=False)
+    parser.add_argument("-rid", metavar='refid'         , help="refids (title + mesh name)"     , type=str  , nargs=1  , required=False)
+    parser.add_argument("-c"  , metavar='color range'   , help="color range"                    , type=float, nargs="+", required=True )
+    parser.add_argument("-s"  , metavar='subplot disposition' , help="subplot disposition (ixj)", type=str  , nargs=1  , required=True )
+    parser.add_argument("-cm" , metavar='color map name', help="color mask name"                , type=str  , nargs=1  , required=False)
+    parser.add_argument("-o"  , metavar='output name'   , help="output name"                    , type=str  , nargs=1  , required=False)
+    parser.add_argument("-p"  , metavar='projection'    , help="projection"                     , type=str  , nargs=1  , required=False)
+    parser.add_argument("-k"  , metavar='vertical level', help="level in fortran convention"    , type=int  , nargs=1  , required=False)
+    parser.add_argument("-z"  , metavar='depth of the map', help="depth of the map"             , type=float, nargs=1  , required=False)
+    parser.add_argument("--cntf", metavar='contour file' , help="contour file list"                , type=str  , nargs="+", required=False)
+    parser.add_argument("--cntv", metavar='contour var ' , help="contour variable"                 , type=str  , nargs=1  , required=False)
+    parser.add_argument("--cntreff", metavar='contour ref file' , help="contour reference file"    , type=str  , nargs=1  , required=False)
+    parser.add_argument("--cntrefv", metavar='contour ref var ' , help="contour reference variable", type=str  , nargs=1  , required=False)
+    parser.add_argument("--cntlev", metavar='contour level', help="contour level (1 value at this stage)", type=float  , nargs=1  , required=False)
+    return parser.parse_args()
+
+# get argument list
+args=get_argument()
 
 # get projection and extend
 if args.p:
