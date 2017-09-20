@@ -12,6 +12,18 @@ import sys
 from cartopy.feature import LAND
 matplotlib.use('GTKAgg') 
 
+def output_argument_lst(cfile, arglst):
+    fid = open(cfile,"w") 
+    fid.write(' python2.7'+' '.join(arglst))
+    fid.close()
+
+def def_output_name(arg_output,cext,cvar,jk,cproj):
+    if arg_output:
+        coutput=arg_output[0]
+    else:
+        coutput=cext+cvar+'_lev'+str(jk)+'_'+cproj
+    return coutput
+
 def def_cmap_lvl(bnds):
 # get color limit
     if bnds:
@@ -132,7 +144,7 @@ if proj_name=='natl'         :
     proj=ccrs.LambertConformal(-40, 45,cutoff=20)
     XY_lim=[-4.250e6,3.694e6,-1.546e6,6.398e6]
     lbad=True
-    joffset=-1
+    joffset=-2
 if proj_name=='greenland'         :
     proj=ccrs.LambertConformal(-40, 45,cutoff=20)
     XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
@@ -204,7 +216,7 @@ else:
     ref_title=''
 
 if args.vr:
-    cvar_ref=args.vr[ivar]
+    cvar_ref=args.vr[0]
 else:
     cvar_ref=cvar
 
@@ -297,13 +309,16 @@ for ifile in range(0,nfile):
            lon2d = ncid_msh.variables['lon'][:]
            msk = 1
         else:
+           print 'mesh_hgr_'+args.fid[ifile]+'.nc'
            ncid_msh = Dataset('mesh_hgr_'+args.fid[ifile]+'.nc')
            lat2d  = ncid_msh.variables['gphit'][0:joffset,:]
            zlon2d = ncid_msh.variables['glamt'][0:joffset,:]
            lon2d=zlon2d.copy()
            for i,start in enumerate(np.argmax(np.abs(np.diff(zlon2d)) > 180, axis=1)):
                lon2d[i, start+1:] += 360
-           ncid_msk = Dataset('mask_'+args.fid[ifile]+'.nc')
+           
+           print 'mesh_mask_'+args.fid[ifile]+'.nc'
+           ncid_msk = Dataset('mesh_mask_'+args.fid[ifile]+'.nc')
            msk = ncid_msk.variables['tmask'][0,jk,0:joffset,:]
         ncid_msk.close()
     else:
@@ -355,7 +370,9 @@ for ifile in range(0,nfile):
     else:
         print ' plot limit unknown, exit'
         sys.exit(1)
-    ax[ifile].add_feature(coast_features,linewidth=0.5)
+
+    ax[ifile].coastlines(resolution='50m',linewidth=0.5)
+    #ax[ifile].add_feature(coast_features,linewidth=0.5) # issue with natl proj (why ????)
     ax[ifile].add_feature(isf_features,linewidth=0.5)
     ax[ifile].add_feature(cartopy.feature.LAKES,edgecolor='k',linewidth=0.5,facecolor='none')
     ax[ifile].gridlines()
@@ -395,9 +412,9 @@ for ifile in range(0,nfile):
         if (not lbad) :
             var2dm = var2dm.filled(-99)
         ncid.close()
-        ax[ifile].contour(lon2dm,lat2dm,var2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='0.25',linewidth=0.5)
+        ax[ifile].contour(lon2dm,lat2dm,var2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='0.25',linewidths=0.5)
         if args.cntreff:
-            ax[ifile].contour(lon2dm,lat2dm,cntref2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='gray',linewidth=0.5)
+            ax[ifile].contour(lon2dm,lat2dm,cntref2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='gray',linewidths=0.5)
 
 # remove extra white space
 hpx=0.06+0.035*njsplt
@@ -412,14 +429,14 @@ draw_colorbar(plt,pcol,vlevel,xl,yb,xr,yt)
 # put whole figure title
 write_figure_title(fig_title,xl,yb,xr,yt)
 
-# get figure nname
-if args.o:
-    coutput_name=args.o[0]
-else:
-    coutput_name=outext+cvar+'_lev'+str(jk)+'_'+proj_name+'.png'
+# get figure name
+coutput_name=def_output_name(args.o[0],outext,cvar,jk,proj_name)
+
+# argument lst output
+output_argument_lst(coutput_name+'.txt',sys.argv)
 
 # save figure
-plt.savefig(coutput_name, format='png', dpi=300)
+plt.savefig(coutput_name+'.png', format='png', dpi=150)
 
 # show figure
 plt.show()
