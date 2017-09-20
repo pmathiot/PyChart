@@ -278,12 +278,17 @@ else:
     outext=''
     ref2dm = 0.0
 
-if args.cntreff:
-    cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],args.cntlev[0],joffset)
-    outext='diff_'
-else:
-    outext=''
-    cntref2dm = 0.0
+if args.cntf:
+    cntfile_lst=args.cntf[:]
+    cntvar=args.cntv[0]
+    cntlev=args.cntlev[0]
+
+    if args.cntreff:
+        cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],args.cntlev[0],joffset)
+        outext='diff_'
+    else:
+        outext=''
+        cntref2dm = 0.0
 
 
 # initialisation
@@ -350,7 +355,6 @@ for ifile in range(0,nfile):
         msk = 1
     ncid_msh.close()
 
-
     # load input file
     var2d=get_2d_data(cfile_lst[ifile],cvar_lst[ifile],jk,joffset)
     # mask data
@@ -359,7 +363,6 @@ for ifile in range(0,nfile):
         ref2dm = ma.masked_where(msk*ref2d==0.0,ref2d)
     if (not lbad) :
         var2dm = var2dm.filled(-99)
-    #ncid.close()
 
     # define subplot
     ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj, axisbg='0.75')
@@ -388,9 +391,6 @@ for ifile in range(0,nfile):
 
     # could be an option to add a contour over the map
     if args.cntf:
-        cntfile_lst=args.cntf[:]
-        cntvar=args.cntv[0]
-        cntlev=args.cntlev[0]
 
         var2d=get_2d_data(cntfile_lst[ifile],cntvar,cntlev,joffset)
 
@@ -410,10 +410,10 @@ for ifile in range(0,nfile):
 hpx=0.06+0.035*njsplt
 plt.subplots_adjust(left=0.01,right=0.89, bottom=0.01, top=0.89, wspace=0.1, hspace=hpx)
 
-# put common colorbar
+# get_figure_corner position
 xl, yb, xr, yt = get_plt_bound(ax, nfile) # left, bottom, right, top
 
-# add_colorbar
+# add common colorbar 
 draw_colorbar(plt,pcol,vlevel,xl,yb,xr,yt)
 
 # put whole figure title
