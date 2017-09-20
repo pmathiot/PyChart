@@ -116,6 +116,27 @@ def get_k_level(klvl, zlvl, cfile, cvar):
 
     return jk0
 
+# get_2d_data
+def get_2d_data(cfile,cvar,klvl,offsety):
+    ncid   = Dataset(cfile)
+    var    = ncid.variables[cvar]
+    print ' reading '+cvar+' in '+cfile+' ...'
+    if len(var.shape)==2 :
+        print ' 2d variable XY'
+        dat2d=var[0:offsety,:]
+    elif len(var.shape)==3 :
+        print ' 3d variable XYT'
+        dat2d=var[0,0:offsety,:]
+    elif len(var.shape)==4 :
+        print ' 4d variable XYZT'
+        dat2d=var[0,klvl,0:offsety,:]
+    else:
+        print var.shape
+        print cvar+' contains '+str(len(var.shape))+' dimensions'
+        print ' shape unknown, exit '
+        sys.exit(42)
+    ncid.close()
+    return dat2d
            
 # add write of the text file for the option
 
@@ -250,47 +271,16 @@ else:
     cvar_ref=cvar
 
 if args.r:
-    ref_file    = args.r[0]
-    ncid   = Dataset(ref_file)
-    var    = ncid.variables[cvar_ref]
-    if len(var.shape)==2 : 
-        print ' 2d variable XY'
-        ref2d=var[0:joffset,:] 
-    elif len(var.shape)==3 :
-        print ' 3d variable XYT'
-        ref2d=var[0,0:joffset,:]
-    elif len(var.shape)==4 :
-        print ' 4d variable XYZT'
-        ref2d=var[0,jk,0:joffset,:]
-    else:
-        print var.shape
-        print cvar+' contains '+str(len(var.shape))+' dimensions' 
-        print ' shape unknown, exit '
+    ref_file = args.r[0]
+    ref2d=get_2d_data(ref_file,cvar_ref,jk,joffset)
     outext='diff_'
-    ncid.close()
 else:
     outext=''
     ref2dm = 0.0
 
 if args.cntreff:
-    ref_file    = args.cntreff[0]
-    ncid   = Dataset(ref_file)
-    var    = ncid.variables[args.cntrefv[0]]
-    if len(var.shape)==2 :
-        print ' 2d variable XY'
-        cntref2d=var[0:joffset,:]
-    elif len(var.shape)==3 :
-        print ' 3d variable XYT'
-        cntref2d=var[0,0:joffset,:]
-    elif len(var.shape)==4 :
-        print ' 4d variable XYZT'
-        cntref2d=var[0,jk,0:joffset,:]
-    else:
-        print var.shape
-        print cvar+' contains '+str(len(var.shape))+' dimensions'
-        print ' shape unknown, exit '
+    cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],args.cntlev[0],joffset)
     outext='diff_'
-    ncid.close()
 else:
     outext=''
     cntref2dm = 0.0
@@ -362,29 +352,14 @@ for ifile in range(0,nfile):
 
 
     # load input file
-    print ' processing '+cfile_lst[ifile]+' '+cvar_lst[ifile]
-    ncid   = Dataset(cfile_lst[ifile])
-    var    = ncid.variables[cvar_lst[ifile]]
-    if len(var.shape)==2 : 
-        print ' 2d variable XY'
-        var2d=var[0:joffset,:] 
-    elif len(var.shape)==3 :
-        print ' 3d variable XYT'
-        var2d=var[0,0:joffset,:]
-    elif len(var.shape)==4 :
-        print ' 4d variable XYZT'
-        var2d=var[0,jk,0:joffset,:]
-    else:
-        print var.shape
-        print cvar_lst[ifile]+' contains '+str(len(var.shape))+' dimensions' 
-        print ' shape unknown, exit '
-        sys.exit(1)
+    var2d=get_2d_data(cfile_lst[ifile],cvar_lst[ifile],jk,joffset)
+    # mask data
     var2dm = ma.masked_where(msk*var2d==0.0,var2d)
     if args.r:
         ref2dm = ma.masked_where(msk*ref2d==0.0,ref2d)
     if (not lbad) :
         var2dm = var2dm.filled(-99)
-    ncid.close()
+    #ncid.close()
 
     # define subplot
     ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj, axisbg='0.75')
@@ -416,23 +391,9 @@ for ifile in range(0,nfile):
         cntfile_lst=args.cntf[:]
         cntvar=args.cntv[0]
         cntlev=args.cntlev[0]
-        print ' processing '+cntfile_lst[ifile]+' '+cntvar
-        ncid   = Dataset(cntfile_lst[ifile])
-        var    = ncid.variables[cntvar   ]
-        if len(var.shape)==2 :
-            print ' 2d variable XY'
-            var2d=var[0:joffset,:]
-        elif len(var.shape)==3 :
-            print ' 3d variable XYT'
-            var2d=var[0,0:joffset,:]
-        elif len(var.shape)==4 :
-            print ' 4d variable XYZT'
-            var2d=var[0,jk,0:joffset,:]
-        else:
-            print var.shape
-            print cvar+' contains '+str(len(var.shape))+' dimensions'
-            print ' shape unknown, exit '
-            sys.exit(1)
+
+        var2d=get_2d_data(cntfile_lst[ifile],cntvar,cntlev,joffset)
+
         var2dm = ma.masked_where(var2d==0.0,var2d)
         lon2dm = ma.masked_where(var2d==0.0,lon2d)
         lat2dm = ma.masked_where(var2d==0.0,lat2d)
@@ -440,7 +401,7 @@ for ifile in range(0,nfile):
             cntref2dm = ma.masked_where(msk*cntref2d==0.0,cntref2d)
         if (not lbad) :
             var2dm = var2dm.filled(-99)
-        ncid.close()
+
         ax[ifile].contour(lon2dm,lat2dm,var2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='0.25',linewidths=0.5)
         if args.cntreff:
             ax[ifile].contour(lon2dm,lat2dm,cntref2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='gray',linewidths=0.5)
@@ -459,7 +420,7 @@ draw_colorbar(plt,pcol,vlevel,xl,yb,xr,yt)
 write_figure_title(fig_title,xl,yb,xr,yt)
 
 # get figure name
-coutput_name=def_output_name(args.o[0],outext,cvar,jk,proj_name)
+coutput_name=def_output_name(args.o[0],outext,cvar,jk,args.p[0])
 
 # argument lst output
 output_argument_lst(coutput_name+'.txt',sys.argv)
