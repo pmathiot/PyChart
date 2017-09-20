@@ -95,6 +95,28 @@ def write_figure_title(ctitle,x0,y0,x1,y1):
             fontsize=16)
     tax.set_axis_off()
 
+def get_k_level(klvl, zlvl, cfile, cvar):
+    if klvl:
+        jk0=klvl[0]
+    elif zlvl:
+    # open netcdf
+        ncid = Dataset(cfile)
+        zdep = ncid.variables[cvar][:].squeeze()
+ 
+        z0=zlvl[0]
+        err0=99999.
+        for jk in range(0,len(zdep)):
+            if np.abs(zdep[jk]-z0) < err0:
+                jk0=jk
+                err0=np.abs(zdep[jk]-z0)
+        print 'the closest level to the requiered depth is: '
+        print jk0,zdep[jk0]
+    else:
+        jk0=0
+
+    return jk0
+
+           
 # add write of the text file for the option
 
 # define argument
@@ -112,6 +134,7 @@ parser.add_argument("-cm" , metavar='color map name', help="color mask name"    
 parser.add_argument("-o"  , metavar='output name'   , help="output name"                    , type=str  , nargs=1  , required=False)
 parser.add_argument("-p"  , metavar='projection'    , help="projection"                     , type=str  , nargs=1  , required=False)
 parser.add_argument("-k"  , metavar='vertical level', help="level in fortran convention"    , type=int  , nargs=1  , required=False)
+parser.add_argument("-z"  , metavar='depth of the map', help="depth of the map"             , type=float, nargs=1  , required=False)
 parser.add_argument("--cntf", metavar='contour file' , help="contour file list"                , type=str  , nargs="+", required=False)
 parser.add_argument("--cntv", metavar='contour var ' , help="contour variable"                 , type=str  , nargs=1  , required=False)
 parser.add_argument("--cntreff", metavar='contour ref file' , help="contour reference file"    , type=str  , nargs=1  , required=False)
@@ -196,11 +219,9 @@ if args.fid:
         sys.exit(2)
 else:
     ctitle_lst = ['']
+
 # get k level
-if args.k:
-    jk=args.k[0]-1
-else:
-    jk=0
+jk=get_k_level(args.k,args.z,args.f[0],'deptht')
 
 # get var
 cvar_lst = args.v[:]
