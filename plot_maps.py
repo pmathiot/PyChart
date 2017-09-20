@@ -143,75 +143,79 @@ def get_argument():
     parser.add_argument("--cntlev", metavar='contour level', help="contour level (1 value at this stage)", type=float  , nargs=1  , required=False)
     return parser.parse_args()
 
+def def_projection(arg_proj):
+    if arg_proj:
+        proj_name=arg_proj[0].lower()
+    else:
+        proj_name='south_stereo'
+
+    if proj_name=='south_stereo' : 
+        proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
+        latlon_lim=[-180, 180, -90, -60]
+        lbad=True
+        joffset=-2
+    if proj_name=='ant' : 
+        proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
+        latlon_lim=[-180, 180, -90, -65]
+        lbad=True
+        joffset=-2
+    if proj_name=='global' :
+        proj=ccrs.PlateCarree()
+        global_lim='T'
+        lbad=False
+        joffset=-1
+    if proj_name=='natl'         :
+        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+        XY_lim=[-4.250e6,3.694e6,-1.546e6,6.398e6]
+        lbad=True
+        joffset=-2
+    if proj_name=='greenland'         :
+        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+        XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
+        lbad=True
+        joffset=-1
+    if proj_name=='ovf'         :
+        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+        XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
+        lbad=True
+        joffset=-1
+    if proj_name=='japan'         :
+        proj=ccrs.LambertConformal(150, 30,cutoff=10)
+        XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
+        lbad=True
+        joffset=-1
+    if proj_name=='global_robinson':
+        proj=ccrs.Robinson()
+        global_lim='T'
+        lbad=False
+        joffset=-1
+    if proj_name=='global_mercator':
+        proj=ccrs.Mercator(central_longitude=-90.0)
+        global_lim='T'
+        lbad=False
+        joffset=-1
+    if proj_name=='feroe'         :
+        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+        XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
+        lbad=True
+        joffset=-1
+    if proj_name=='gulf_stream'         :
+        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+        XY_lim=[-4.250e6,1.115e5,-1.546e6,2.8155e6]
+        lbad=True
+        joffset=-1
+    if proj_name=='ross':
+        proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0)
+        XY_lim=[-6.67e5,8.33e5,1.05e6,2.47e6]
+        lbad=True
+        joffset=-2
+    return proj, XY_lim, lbad, joffset
+# =======================================================================================================================================================
 # get argument list
 args=get_argument()
 
 # get projection and extend
-if args.p:
-    proj_name=args.p[0].lower()
-else:
-    proj_name='south_stereo'
-
-if proj_name=='south_stereo' : 
-    proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
-    latlon_lim=[-180, 180, -90, -60]
-    lbad=True
-    joffset=-2
-if proj_name=='ant' : 
-    proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
-    latlon_lim=[-180, 180, -90, -65]
-    lbad=True
-    joffset=-2
-if proj_name=='global' :
-    proj=ccrs.PlateCarree()
-    global_lim='T'
-    lbad=False
-    joffset=-1
-if proj_name=='natl'         :
-    proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-    XY_lim=[-4.250e6,3.694e6,-1.546e6,6.398e6]
-    lbad=True
-    joffset=-2
-if proj_name=='greenland'         :
-    proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-    XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
-    lbad=True
-    joffset=-1
-if proj_name=='ovf'         :
-    proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-    XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
-    lbad=True
-    joffset=-1
-if proj_name=='japan'         :
-    proj=ccrs.LambertConformal(150, 30,cutoff=10)
-    XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
-    lbad=True
-    joffset=-1
-if proj_name=='global_robinson':
-    proj=ccrs.Robinson()
-    global_lim='T'
-    lbad=False
-    joffset=-1
-if proj_name=='global_mercator':
-    proj=ccrs.Mercator(central_longitude=-90.0)
-    global_lim='T'
-    lbad=False
-    joffset=-1
-if proj_name=='feroe'         :
-    proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-    XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
-    lbad=True
-    joffset=-1
-if proj_name=='gulf_stream'         :
-    proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-    XY_lim=[-4.250e6,1.115e5,-1.546e6,2.8155e6]
-    lbad=True
-    joffset=-1
-if proj_name=='ross':
-    proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0)
-    XY_lim=[-6.67e5,8.33e5,1.05e6,2.47e6]
-    lbad=True
-    joffset=-2
+proj, XY_lim, lbad, joffset = def_projection(args.p)
 
 # get file and title list and sanity check
 cfile_lst  = args.f[:]
