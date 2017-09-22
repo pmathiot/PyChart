@@ -14,16 +14,17 @@ matplotlib.use('GTKAgg')
 
 def output_argument_lst(cfile, arglst):
     fid = open(cfile,"w") 
-    fid.write(' python2.7'+' '.join(arglst))
+    fid.write(' python2.7 '+' '.join(arglst))
     fid.close()
 
 def def_output_name(arg_output,cext,cvar,jk,cproj):
     if arg_output:
-        coutput=arg_output[0]
+        coutput=arg_output
     else:
         coutput=cext+cvar+'_lev'+str(jk)+'_'+cproj
     return coutput
 
+#======================= CMAP ===========================================
 def def_cmap_lvl(bnds):
 # get color limit
     if bnds:
@@ -39,7 +40,6 @@ def def_cmap_lvl(bnds):
         sys.exit(42)
 
     return lvl
-
 
 def def_cmap(cm,lvl):
 # get color bar
@@ -57,6 +57,7 @@ def def_cmap(cm,lvl):
     norm = colors.BoundaryNorm(boundaries=lvl, ncolors=nlvl-1)
 
     return cmap,norm
+#========================================================================
 
 def get_land_features():
 # get isf groiunding line, ice shelf front and coastline
@@ -65,6 +66,8 @@ def get_land_features():
 
     return isf_features, coast_features
 
+
+#======================= COLORBAR =======================================
 def get_plt_bound(ax_lst,nplt):
 # get plot corner position
     bc_lst = [None] * nplt
@@ -85,6 +88,7 @@ def draw_colorbar(plt,cb,lvl,x0,y0,x1,y1):
     cbar = plt.colorbar(cb, cax=cax, format='%4.2f', extend='both',)
     cbar.set_ticks(lvl)
     cbar.ax.tick_params(labelsize=14)
+#========================================================================
 
 def write_figure_title(ctitle,x0,y0,x1,y1):
 # put whole figure title
@@ -137,7 +141,14 @@ def get_2d_data(cfile,cvar,klvl,offsety):
         sys.exit(42)
     ncid.close()
     return dat2d
-           
+          
+def plot_section_line(plt,cfile):
+    ncid  = Dataset(cfile)
+    lon   = ncid.variables['nav_lon'][:].squeeze()
+    lat   = ncid.variables['nav_lat'][:].squeeze()
+    ncid.close()
+    plt.plot(lon,lat,'k-',linewidth=2.0,transform=ccrs.PlateCarree())
+ 
 # add write of the text file for the option
 
 def get_argument():
@@ -161,7 +172,8 @@ def get_argument():
     parser.add_argument("--cntv", metavar='contour var ' , help="contour variable"                 , type=str  , nargs=1  , required=False)
     parser.add_argument("--cntreff", metavar='contour ref file' , help="contour reference file"    , type=str  , nargs=1  , required=False)
     parser.add_argument("--cntrefv", metavar='contour ref var ' , help="contour reference variable", type=str  , nargs=1  , required=False)
-    parser.add_argument("--cntlev", metavar='contour level', help="contour level (1 value at this stage)", type=float  , nargs=1  , required=False)
+    parser.add_argument("--cntlev", metavar='contour level'     , help="contour level (1 value at this stage)", type=float  , nargs=1  , required=False)
+    parser.add_argument("--secf", metavar='section line file'   , help="section file describing one particular section to plot", type=str  , nargs=1  , required=False)
     return parser.parse_args()
 
 def def_projection(arg_proj):
@@ -405,6 +417,10 @@ for ifile in range(0,nfile):
         ax[ifile].contour(lon2dm,lat2dm,var2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='0.25',linewidths=0.5)
         if args.cntreff:
             ax[ifile].contour(lon2dm,lat2dm,cntref2dm,levels=[cntlev, cntlev],transform=ccrs.PlateCarree(),colors='gray',linewidths=0.5)
+
+    if args.secf:
+        print 'plot section line'
+        plot_section_line(ax[ifile],args.secf[0])
 
 # remove extra white space
 hpx=0.06+0.035*njsplt
