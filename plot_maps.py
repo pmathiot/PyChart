@@ -82,12 +82,14 @@ def get_plt_bound(ax_lst,nplt):
 
     return x0, y0, x1, y1
 
-def draw_colorbar(plt,cb,lvl,x0,y0,x1,y1):
+def draw_colorbar(plt,cb,lvl,x0,y0,x1,y1,cunit='',fmt='%5.2f'):
 # draw colorbar
     cax  = plt.axes([x1+0.02, y0, 0.02, y1-y0])
-    cbar = plt.colorbar(cb, cax=cax, format='%4.2f', extend='both',)
+    print fmt
+    cbar = plt.colorbar(cb, cax=cax, format=fmt, extend='both')
     cbar.set_ticks(lvl)
     cbar.ax.tick_params(labelsize=14)
+    cbar.ax.set_title(cunit)
 #========================================================================
 
 def write_figure_title(ctitle,x0,y0,x1,y1):
@@ -154,24 +156,27 @@ def plot_section_line(plt,cfile):
 def get_argument():
 # define argument
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f"  , metavar='file_name'     , help="names of input files"           , type=str  , nargs="+", required=True )
-    parser.add_argument("-v"  , metavar='var_name'      , help="variable list"                  , type=str  , nargs="+", required=True )
-    parser.add_argument("-r"  , metavar='file_ref'      , help="names of ref   files"           , type=str  , nargs=1  , required=False)
-    parser.add_argument("-vr" , metavar='reference var_name', help="reference variable name"    , type=str  , nargs=1  , required=False)
-    parser.add_argument("-ft" , metavar='figure title'  , help="title of the whole figure"      , type=str  , nargs=1  , required=False)
-    parser.add_argument("-fid", metavar='runid'         , help="runids (title + mesh name)"     , type=str  , nargs="+", required=False)
-    parser.add_argument("-rid", metavar='refid'         , help="refids (title + mesh name)"     , type=str  , nargs=1  , required=False)
-    parser.add_argument("-c"  , metavar='color range'   , help="color range"                    , type=float, nargs="+", required=True )
-    parser.add_argument("-s"  , metavar='subplot disposition' , help="subplot disposition (ixj)", type=str  , nargs=1  , required=True )
-    parser.add_argument("-cm" , metavar='color map name', help="color mask name"                , type=str  , nargs=1  , required=False)
-    parser.add_argument("-o"  , metavar='output name'   , help="output name"                    , type=str  , nargs=1  , required=False)
-    parser.add_argument("-p"  , metavar='projection'    , help="projection"                     , type=str  , nargs=1  , required=False)
-    parser.add_argument("-k"  , metavar='vertical level', help="level in fortran convention"    , type=int  , nargs=1  , required=False)
-    parser.add_argument("-z"  , metavar='depth of the map', help="depth of the map"             , type=float, nargs=1  , required=False)
-    parser.add_argument("--cntf", metavar='contour file' , help="contour file list"                , type=str  , nargs="+", required=False)
-    parser.add_argument("--cntv", metavar='contour var ' , help="contour variable"                 , type=str  , nargs=1  , required=False)
-    parser.add_argument("--cntreff", metavar='contour ref file' , help="contour reference file"    , type=str  , nargs=1  , required=False)
-    parser.add_argument("--cntrefv", metavar='contour ref var ' , help="contour reference variable", type=str  , nargs=1  , required=False)
+    parser.add_argument("-f"  , metavar='file_name'       , help="names of input files"           , type=str  , nargs="+", required=True )
+    parser.add_argument("-v"  , metavar='var_name'        , help="variable list"                  , type=str  , nargs="+", required=True )
+    parser.add_argument("-r"  , metavar='file_ref'        , help="names of ref   files"           , type=str  , nargs=1  , required=False)
+    parser.add_argument("-vr" , metavar='reference var_name', help="reference variable name"      , type=str  , nargs=1  , required=False)
+    parser.add_argument("-mapsf", metavar='map data scale factor', help="map data scale factor"   , type=float, nargs=1  , default=[1.0]    , required=False)
+    parser.add_argument("-ft" , metavar='figure title'    , help="title of the whole figure"      , type=str  , nargs=1  , required=False)
+    parser.add_argument("-fid", metavar='runid'           , help="runids (title + mesh name)"     , type=str  , nargs="+", required=False)
+    parser.add_argument("-rid", metavar='refid'           , help="refids (title + mesh name)"     , type=str  , nargs=1  , required=False)
+    parser.add_argument("-c"  , metavar='color range'     , help="color range"                    , type=float, nargs="+", required=True )
+    parser.add_argument("-s"  , metavar='subplot disposition' , help="subplot disposition (ixj)"  , type=str  , nargs=1  , required=True )
+    parser.add_argument("-cm" , metavar='color map name'  , help="color map name"                 , type=str  , nargs=1  , required=False)
+    parser.add_argument("-cbu"   , metavar='color map unit' , help="colorbar unit"                , type=str  , nargs=1  , default=['']     , required=False)
+    parser.add_argument("-cbfmt" , metavar='color bar fmt'  , help="colorbar format"              , type=str  , nargs=1  , default=['%5.2f'], required=False)
+    parser.add_argument("-o"  , metavar='output name'     , help="output name"                    , type=str  , nargs=1  , required=False)
+    parser.add_argument("-p"  , metavar='projection'      , help="projection"                     , type=str  , nargs=1  , required=False)
+    parser.add_argument("-k"  , metavar='vertical level'  , help="level in fortran convention"    , type=int  , nargs=1  , required=False)
+    parser.add_argument("-z"  , metavar='depth of the map', help="depth of the map"               , type=float, nargs=1  , required=False)
+    parser.add_argument("--cntf", metavar='contour file'  , help="contour file list"              , type=str  , nargs="+", required=False)
+    parser.add_argument("--cntv", metavar='contour var '  , help="contour variable"               , type=str  , nargs=1  , required=False)
+    parser.add_argument("--cntreff", metavar='contour ref file' , help="contour reference file"   , type=str  , nargs=1  , required=False)
+    parser.add_argument("--cntrefv", metavar='contour ref var ' , help="contour reference variable", type=str  , nargs=1 , required=False)
     parser.add_argument("--cntlev", metavar='contour level'     , help="contour level (1 value at this stage)", type=float  , nargs=1  , required=False)
     parser.add_argument("--secf", metavar='section line file'   , help="section file describing one particular section to plot", type=str  , nargs=1  , required=False)
     return parser.parse_args()
@@ -328,6 +333,9 @@ vlevel = def_cmap_lvl(args.c)
 # get color bar
 cmap, norm = def_cmap(args.cm,vlevel)
 
+# get map scale factor
+map_sf=args.mapsf[0]
+
 # load land feature
 isf_features, coast_features = get_land_features()
 
@@ -408,7 +416,7 @@ for ifile in range(0,nfile):
 
     # make plot
    # could be an option to not plot the map
-    pcol = ax[ifile].pcolormesh(lon2d,lat2d,var2dm-ref2dm,cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
+    pcol = ax[ifile].pcolormesh(lon2d,lat2d,(var2dm-ref2dm)*map_sf,cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
 
     # could be an option to add a contour over the map
     if args.cntf:
@@ -433,13 +441,13 @@ for ifile in range(0,nfile):
 
 # remove extra white space
 hpx=0.06+0.035*njsplt
-plt.subplots_adjust(left=0.01,right=0.89, bottom=0.01, top=0.89, wspace=0.1, hspace=hpx)
+plt.subplots_adjust(left=0.01,right=0.88, bottom=0.01, top=0.89, wspace=0.1, hspace=hpx)
 
 # get_figure_corner position
 xl, yb, xr, yt = get_plt_bound(ax, nfile) # left, bottom, right, top
 
 # add common colorbar 
-draw_colorbar(plt,pcol,vlevel,xl,yb,xr,yt)
+draw_colorbar(plt,pcol,vlevel,xl,yb,xr,yt,args.cbu[0],args.cbfmt[0])
 
 # put whole figure title
 write_figure_title(fig_title,xl,yb,xr,yt)
