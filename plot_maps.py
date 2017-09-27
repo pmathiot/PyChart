@@ -124,6 +124,15 @@ def get_k_level(klvl, zlvl, cfile, cvar):
 
     return jk0
 
+# get lat/lon
+def get_latlon(cfile,clon,clat,joffset):
+    lat2d =get_2d_data(cfile,clon,0,joffset)
+    zlon2d=get_2d_data(cfile,clat,0,joffset)
+    lon2d=zlon2d.copy()
+    for i,start in enumerate(np.argmax(np.abs(np.diff(zlon2d)) > 180, axis=1)):
+        lon2d[i, start+1:] += 360
+    return lat2d,lon2d
+
 # get_2d_data
 def get_2d_data(cfile,cvar,klvl,offsety):
     print ' reading '+cvar+' in '+cfile+' ...'
@@ -357,35 +366,22 @@ plt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
 
 for ifile in range(0,nfile):
 
+    # initialisation msk
+    msk = 1.0
     if args.fid:
     # deals with mesh mask
         if args.fid[ifile] == 'OBS':
-           ncid_msh = Dataset(cfile_lst[ifile])
-           lat2d = ncid_msh.variables['lat'][:]
-           lon2d = ncid_msh.variables['lon'][:]
-           msk = 1
+           lat2d,lon2d=get_latlon(cfile_lst[ifile],'lat','lon',joffset) 
         else:
            print 'mesh_hgr_'+args.fid[ifile]+'.nc'
-           ncid_msh = Dataset('mesh_hgr_'+args.fid[ifile]+'.nc')
-           lat2d  = ncid_msh.variables['gphit'][0:joffset,:]
-           zlon2d = ncid_msh.variables['glamt'][0:joffset,:]
-           lon2d=zlon2d.copy()
-           for i,start in enumerate(np.argmax(np.abs(np.diff(zlon2d)) > 180, axis=1)):
-               lon2d[i, start+1:] += 360
+           lat2d,lon2d=get_latlon('mesh_hgr_'+args.fid[ifile]+'.nc','gphit','glamt',joffset) 
            
            print 'mesh_mask_'+args.fid[ifile]+'.nc'
            ncid_msk = Dataset('mesh_mask_'+args.fid[ifile]+'.nc')
            msk = ncid_msk.variables['tmask'][0,jk,0:joffset,:]
-        ncid_msk.close()
+           ncid_msk.close()
     else:
-        ncid_msh  = Dataset(cfile_lst[ifile])
-        lat2d = ncid_msh.variables['nav_lat'][0:joffset,:]
-        zlon2d = ncid_msh.variables['nav_lon'][0:joffset,:]
-        lon2d=zlon2d.copy()
-        for i,start in enumerate(np.argmax(np.abs(np.diff(zlon2d)) > 180, axis=1)):
-            lon2d[i, start+1:] += 360
-        msk = 1
-    ncid_msh.close()
+        lat2d,lon2d=get_latlon(cfile_lst[ifile],'nav_lat','nav_lon',joffset) 
 
     # load input file
     var2d=get_2d_data(cfile_lst[ifile],cvar_lst[ifile],jk,joffset)
