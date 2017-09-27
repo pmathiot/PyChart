@@ -33,8 +33,13 @@ def def_cmap_lvl(bnds):
             lvlmax = bnds[1]
             lvlint = bnds[2]
             lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
+        elif len(bnds)==2:
+            lvlmin = bnds[0]
+            lvlmax = bnds[1]
+            lvl=np.linspace(lvlmin, lvlmax, num=20)
         else:
-            lvl=bnds[:]
+            print ' -c need 2 or 3 argument: cmin cmax (cint, default 20 interval))'
+            
     else:
         print ' Need definition of levels (min,max,int) at least.'
         sys.exit(42)
@@ -44,10 +49,7 @@ def def_cmap_lvl(bnds):
 def def_cmap(cm,lvl):
 # get color bar
     nlvl=len(lvl)
-    if cm:
-        cmap  = plt.get_cmap(cm[0],nlvl-1)
-    else:
-        cmap  = plt.get_cmap('RdBu_r',nlvl-1)
+    cmap  = plt.get_cmap(cm,nlvl-1)
 
     if lbad:
         cmap.set_bad('0.75', 1.0)
@@ -165,10 +167,10 @@ def get_argument():
     parser.add_argument("-fid", metavar='runid'           , help="runids (title + mesh name)"     , type=str  , nargs="+", required=False)
     parser.add_argument("-rid", metavar='refid'           , help="refids (title + mesh name)"     , type=str  , nargs=1  , required=False)
     parser.add_argument("-c"  , metavar='color range'     , help="color range"                    , type=float, nargs="+", required=True )
-    parser.add_argument("-s"  , metavar='subplot disposition' , help="subplot disposition (ixj)"  , type=str  , nargs=1  , required=True )
-    parser.add_argument("-cm" , metavar='color map name'  , help="color map name"                 , type=str  , nargs=1  , required=False)
-    parser.add_argument("-cbu"   , metavar='color map unit' , help="colorbar unit"                , type=str  , nargs=1  , default=['']     , required=False)
-    parser.add_argument("-cbfmt" , metavar='color bar fmt'  , help="colorbar format"              , type=str  , nargs=1  , default=['%5.2f'], required=False)
+    parser.add_argument("-s"  , metavar='subplot disposition' , help="subplot disposition (ixj)"  , type=str  , nargs=1  , default=['1x1']   , required=False)
+    parser.add_argument("-cm" , metavar='color map name'  , help="color map name"                 , type=str  , nargs=1  , default=['RdBu_r'], required=False)
+    parser.add_argument("-cbu"   , metavar='color map unit' , help="colorbar unit"                , type=str  , nargs=1  , default=['']      , required=False)
+    parser.add_argument("-cbfmt" , metavar='color bar fmt'  , help="colorbar format"              , type=str  , nargs=1  , default=['%5.2f'] , required=False)
     parser.add_argument("-o"  , metavar='output name'     , help="output name"                    , type=str  , nargs=1  , required=False)
     parser.add_argument("-p"  , metavar='projection'      , help="projection"                     , type=str  , nargs=1  , required=False)
     parser.add_argument("-k"  , metavar='vertical level'  , help="level in fortran convention"    , type=int  , nargs=1  , required=False)
@@ -331,7 +333,7 @@ else:
 vlevel = def_cmap_lvl(args.c)
 
 # get color bar
-cmap, norm = def_cmap(args.cm,vlevel)
+cmap, norm = def_cmap(args.cm[0],vlevel)
 
 # get map scale factor
 map_sf=args.mapsf[0]
@@ -347,6 +349,7 @@ if nisplt*njsplt < nfile:
     print nisplt*njsplt,' panels'
     print nfile*nvar, ' plot asked'
     print ' number subplot lower than the number of plot asked (nfile*nvar) '
+    print ' add -s XxY option in the command line'
     sys.exit(1)
 
 # define figure dimension
