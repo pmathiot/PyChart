@@ -122,9 +122,9 @@ def get_k_level(klvl, zlvl, cfile, cvar):
 
 # get_2d_data
 def get_2d_data(cfile,cvar,klvl,offsety):
+    print ' reading '+cvar+' in '+cfile+' ...'
     ncid   = Dataset(cfile)
     var    = ncid.variables[cvar]
-    print ' reading '+cvar+' in '+cfile+' ...'
     if len(var.shape)==2 :
         print ' 2d variable XY'
         dat2d=var[0:offsety,:]
@@ -247,12 +247,20 @@ def def_projection(arg_proj):
 # get argument list
 args=get_argument()
 
-# get projection and extend
-proj, XY_lim, lbad, joffset = def_projection(args.p)
-
 # get file and title list and sanity check
 cfile_lst  = args.f[:]
 nfile = len(cfile_lst)
+
+cvar_lst=args.v[:]
+nvar = len(cvar_lst)
+cvar = cvar_lst[0]
+if nvar == 1:
+    print 'Length of variable list is 1, we assume it is the same variable for all input file'
+    cvar_lst=[args.v[0]]*nfile
+elif nvar != nfile:
+    print 'length of variable list should be 1 or '+str(nfile)
+    sys.exit(42)
+
 if args.fid:
     ctitle_lst = args.fid[:]
     if len(cfile_lst) != len(ctitle_lst):
@@ -261,15 +269,16 @@ if args.fid:
 else:
     ctitle_lst = ['']
 
+if args.cntf:
+    if len(args.cntf) != nfile:
+        print 'Length of contour file list and map file list is not the same length, exit'
+        sys.exit(42)
+    
+# get projection and extend
+proj, XY_lim, lbad, joffset = def_projection(args.p)
+
 # get k level
 jk=get_k_level(args.k,args.z,args.f[0],'deptht')
-
-# get var
-cvar_lst = args.v[:]
-nvar = len(cvar_lst)
-cvar = cvar_lst[0]
-if nvar == 1:
-    cvar_lst=[cvar]*nfile
 
 # deals with ref file
 if args.rid:
@@ -277,12 +286,12 @@ if args.rid:
 else:
     ref_title=''
 
-if args.vr:
-    cvar_ref=args.vr[0]
-else:
-    cvar_ref=cvar
-
 if args.r:
+    if args.vr:
+        cvar_ref=args.vr[0]
+    else:
+        cvar_ref=cvar
+
     ref_file = args.r[0]
     ref2d=get_2d_data(ref_file,cvar_ref,jk,joffset)
     outext='diff_'
