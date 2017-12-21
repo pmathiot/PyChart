@@ -41,9 +41,9 @@ def get_jk(jk0=None,z0=None,cfile=None):
             print 'ERROR, jk and z define, check script argument list'
             sys.exit(42)
         if jk0:
-            jk=jk0
+            jk=jk0[0]
         elif z0:
-            jk=get_k_level(z0,cfile[0])
+            jk=get_k_level(z0[0],cfile[0])
     return jk
 
 def get_var_lst(cvar,cfile):
@@ -58,14 +58,12 @@ def get_var_lst(cvar,cfile):
     return cvar_lst
 
 # get file and title list and sanity check
-def get_file_and_varname(file_lst,var_lst):
+def get_file_and_varname(cdir,cfile_lst,cvar_lst):
 # def file list
-    cfile  = args.mapf[:]
-# def var list
-    cvar = args.mapv[:]
+    cpath_lst  = [cdir + f for f in cfile_lst]
 # get map var list 
-    cvar=get_var_lst(cvar,cfile)
-    return cfile,cvar
+    cvar_lst_ext=get_var_lst(cvar_lst,cpath_lst)
+    return cpath_lst,cvar_lst_ext
 
 # get subplot disposition
 def get_subplot(csubplt,nplt):
@@ -84,7 +82,7 @@ def get_subplot(csubplt,nplt):
 def get_argument():
 # define argument
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir"     , metavar='data dir'                 , help="data dir"                       , type=str  , nargs=1  , required=False)
+    parser.add_argument("--dir"     , metavar='data dir'                 , help="data dir"                       , type=str  , nargs=1  , default=['./']    , required=False)
     parser.add_argument("--mapf"    , metavar='file_name'                , help="names of input files"           , type=str  , nargs="+", required=True )
     parser.add_argument("--mapv"    , metavar='var_name'                 , help="variable list"                  , type=str  , nargs="+", required=True )
     parser.add_argument("--mapreff" , metavar='file_ref'                 , help="names of ref   files"           , type=str  , nargs=1  , required=False)
@@ -96,6 +94,7 @@ def get_argument():
     parser.add_argument("--cblvl"   , metavar='color range'              , help="color range"                    , type=float, nargs="+", required=True )
     parser.add_argument("--cbu"     , metavar='color map unit'           , help="colorbar unit"                  , type=str  , nargs=1  , default=['']      , required=False)
     parser.add_argument("--cbfmt"   , metavar='color bar fmt'            , help="colorbar format"                , type=str  , nargs=1  , default=['%5.2f'] , required=False)
+    parser.add_argument("--cbext"   , metavar='color bar extend'         , help="colorbar extend"                , type=str  , nargs=1  , default=['both']  , required=False)
     parser.add_argument("--ft"      , metavar='figure title'             , help="title of the whole figure"      , type=str  , nargs=1  , default=['']      , required=False)
     parser.add_argument("--spfid"   , metavar='runid'                    , help="runids (title + mesh name)"     , type=str  , nargs="+", default=['']      , required=False)
     parser.add_argument("--sprid"   , metavar='refid'                    , help="refids (title + mesh name)"     , type=str  , nargs=1  , default=['']      , required=False)
@@ -109,7 +108,7 @@ def get_argument():
     parser.add_argument("--cntreff" , metavar='contour ref file'         , help="contour reference file"         , type=str  , nargs=1  , required=False)
     parser.add_argument("--cntrefv" , metavar='contour ref var '         , help="contour reference variable"     , type=str  , nargs=1  , required=False)
     parser.add_argument("--cntsf"   , metavar='contour data scale factor', help="contour data scale factor"      , type=float, nargs=1  , default=[1.0]    , required=False)
-    parser.add_argument("--cntjk"   , metavar='contour jk level'         , help="contour jk level "              , type=float, nargs=1  , required=False)
+    parser.add_argument("--cntjk"   , metavar='contour jk level'         , help="contour jk level "              , type=int  , nargs=1  , required=False)
     parser.add_argument("--cntz"    , metavar='contour jk level'         , help="contour jk level "              , type=float, nargs=1  , required=False)
     parser.add_argument("--cntlvl"  , metavar='contour line level'       , help="contour line level"             , type=float, nargs="+", required=False)
     parser.add_argument("--bathyf"  , metavar='bathy file'               , help="bathy file"                     , type=str  , nargs="+", required=False)
@@ -177,7 +176,9 @@ args=get_argument()
 
 # get file and title list and sanity check
 if args.mapf:
-    cmaprunfile,cmaprunvar=get_file_and_varname(args.mapf[:],args.mapv[:])
+    cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
+    mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
+print mapjk
 
 sanity_check(args)
 
@@ -187,39 +188,35 @@ if args.spfid:
 # get projection and extend
 proj, XY_lim, joffset = def_projection(args.p[0])
 
-# get k level
-mapjk=get_jk(args.mapjk,args.mapz,args.mapf)
-cntjk=get_jk(args.cntjk,args.cntz,args.cntf)
 
 # deals with ref file
 creft=''
 mapref2d=0.0
 if args.mapreff:
     # def file list
-    cmapreffile = args.mapreff[:]
-    nmapreffile = len(cmapreffile)
     if args.maprefv:
-        # def var list
-        cmaprefvar = args.maprefv[:]
-        cmaprefvar=get_var_lst(cmaprefvar,cmapreffile)
+        cmapreffile,cmaprefvar=get_file_and_varname(args.dir[0], args.mapreff[:],args.maprefv[:])
     else:
-        cmaprefvar=cmarrunvar
+        cmapreffile = args.mapreff[:]
+        cmaprefvar  = cmarrunvar[:]
+    nmapreffile = len(cmapreffile)
 
     if args.sprid:
-        creft=' - '+args.spid[0]
-    
+        creft=' - '+args.sprid[0]
+    print nmapreffile,' ref',cmapreffile[0],args.mapreff 
     if nmapreffile==1 :
-        cmapreffile = args.mapreff[0]
-        mapref2d=get_2d_data(cmapreffile,cmaprefvar,mapjk,joffset)
+        mapref2d=get_2d_data(cmapreffile[0],cmaprefvar[0],klvl=mapjk,offsety=joffset)
     else:
         print 'more than 1 ref file, not yet implememnnted'
         sys.exit(42)
 
 if args.cntf:
     # get file and title list and sanity check
-    ccntrunfile,cntrunvar=get_file_and_varname(args.cntf[:],args.cntv[:])
-    cntlev=def_cmap_lvl(args.cntlvl)
-    cntclr=[None]*len(cntlev)
+    ccntrunfile,ccntrunvar=get_file_and_varname(args.dir[0], args.cntf[:],args.cntv[:])
+    cntjk=get_jk(args.cntjk,args.cntz,ccntrunfile[0])
+    print cntjk, args.cntjk
+    cntlvl=get_lvl(args.cntlvl)
+    cntclr=[None]*len(cntlvl)
     for ii, val in enumerate(cntlvl):
         if val<0:
             cntclr[ii]='0.75'
@@ -227,9 +224,10 @@ if args.cntf:
             cntclr[ii]='k'
 
     if args.cntreff:
-        cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],cntjk,joffset)
+        cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],klvl=cntjk,offsety=joffset)
     else:
         cntref2dm = 0.0
+
 
 
 # get whole figure title
@@ -238,7 +236,8 @@ if args.ft:
     fig_title=args.ft[0]
 
 # get color bar
-cmap, maplvl, rmin, rmax = get_cmap(args.cbn[0],args.cblvl,cext='both')
+cextend=args.cbext[0]
+cmap, maplvl, rmin, rmax = get_cmap(args.cbn[0],args.cblvl,cext=cextend)
 
 # get map/cnt scale factor
 map_sf=args.mapsf[0]
@@ -250,6 +249,11 @@ if args.mapf:
 elif args.cntf:
     nplt=len(ccntrunfile)
 nisplt,njsplt = get_subplot(args.sp[0],nplt)
+
+# supplot title prefix
+csubplt_title=['']
+if nplt > 1:
+    csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
 
 # initialisation
 ax = [None] * nplt
@@ -266,7 +270,7 @@ for ifile in range(0,nplt):
         cmsk=args.mask[ifile]
         if os.path.isfile(cmsk):
            print 'open '+cmsk
-           msk = get_2d_data(cmsk,'tmask',mapjk,joffset)
+           msk = get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
            msk = ma.masked_where(msk==0.0,msk)
 
     if args.mesh:
@@ -276,7 +280,8 @@ for ifile in range(0,nplt):
         lat2d,lon2d=get_latlon(cmaprunfile[ifile],joffset) 
 
     # load input file
-    mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],mapjk,joffset)
+    mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
+    mapvar2d = ma.masked_where(mapvar2d==0.0,mapvar2d)
 
     # mask data
     lon2d = ma.masked_array(lon2d, mapvar2d.mask)
@@ -298,29 +303,32 @@ for ifile in range(0,nplt):
         print ' plot limit unknown, exit'
         sys.exit(1)
 
-    ax[ifile].coastlines(resolution='50m',linewidth=0.5)
-    #ax[ifile].add_feature(coast_features,linewidth=0.5) # issue with natl proj (why ????)
-    add_land_features(ax[ifile],['isf','lakes'])
+    add_land_features(ax[ifile],['isf','lakes','land'])
     ax[ifile].gridlines()
-    ax[ifile].set_title(ctitle_lst[ifile]+creft)
+    ax[ifile].set_title(csubplt_title[ifile]+ctitle_lst[ifile]+creft)
 
     # make plot
     if args.mapf:
     # could be an option to not plot the map
-        pcol = ax[ifile].contourf(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,levels=maplvl,transform=ccrs.PlateCarree(),rasterized=True,extend='both')
+        #pcol = ax[ifile].contourf(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,levels=maplvl,transform=ccrs.PlateCarree(),rasterized=True,extend=cextend)
+        print 'plot pcolormesh ...'
+        pcol = ax[ifile].pcolormesh(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,transform=ccrs.PlateCarree(),rasterized=True)
+        pass
 
     # could be an option to add a contour over the map
     if args.cntf:
-        var2d=get_2d_data(ccntrunfile[ifile],ccntrunvar,cntlev,joffset)
+        var2d=get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
         var2dm = ma.masked_where(var2d==0.0,var2d)
         if args.cntreff:
             cntref2dm = ma.masked_where(msk*cntref2d==0.0,cntref2d)
 
-        ax[ifile].contour(lon2d,lat2d,(var2dm-cntref2dm)*cnt_sf,levels=cntlev,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
+        print 'plot contour ...'
+        ax[ifile].contour(lon2d,lat2d,(var2dm-cntref2dm)*cnt_sf,levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
         
     if args.bathyf:
-        bathy2d=get_2d_data(args.bathyf[ifile],args.bathyv[0],0,joffset)
+        bathy2d=get_2d_data(args.bathyf[ifile],args.bathyv[0],offsety=joffset)
         bathy2dm = ma.masked_where(bathy2d==0.0,bathy2d)
+        print 'plot bathymetry ...'
         ax[ifile].contour(lon2d,lat2d,bathy2dm,levels=args.bathylvl[:],transform=ccrs.PlateCarree(),colors='0.5',linewidths=0.5)
 
     if args.secf:
@@ -336,7 +344,7 @@ xl, yb, xr, yt = get_plt_bound(ax, nplt) # left, bottom, right, top
 
 # add common colorbar
 if args.mapf:
-    add_colorbar(plt,pcol,xl,yb,xr,yt,lvl=maplvl[:],cunit=args.cbu[0],cfmt=args.cbfmt[0],cext='both')
+    add_colorbar(plt,pcol,xl,yb,xr,yt,lvl=maplvl[:],cunit=args.cbu[0],cfmt=args.cbfmt[0],cext=cextend)
 
 # put whole figure title
 add_title(plt,fig_title,xl,yb,xr,yt)

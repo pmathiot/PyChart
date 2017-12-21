@@ -1,4 +1,5 @@
 import re
+import cartopy.crs as ccrs
 import netCDF4 as nc
 import sys
 sys.path.insert(0, '/home/h05/pmathiot/PYTHON/MISC/seawater/')
@@ -42,6 +43,8 @@ def add_land_features(ax,cfeature_lst):
             feature = cartopy.feature.NaturalEarthFeature('physical', 'lakes'                      , '50m',facecolor='none',edgecolor='k')
         elif cfeat=='coast':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'coastline'                  , '50m',facecolor='0.75',edgecolor='k')
+        elif cfeat=='land':
+            feature = cartopy.feature.NaturalEarthFeature('physical', 'land'                       , '50m',facecolor='0.75',edgecolor='k')
         elif cfeat=='bathy_z1000':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'          , '10m',facecolor='none',edgecolor='k')
         elif cfeat=='bathy_z2000':
@@ -54,23 +57,28 @@ def add_land_features(ax,cfeature_lst):
         ax.add_feature(feature,linewidth=0.5)
 
 # ============================ CMAP ====================================
+def get_lvl(bnds):
+    if len(bnds)==3 :
+        lvlmin = bnds[0]
+        lvlmax = bnds[1]
+        lvlint = bnds[2]
+        lvlmin = round(lvlmin/lvlint)*lvlint
+        lvlmax = round(lvlmax/lvlint)*lvlint
+        lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
+    elif len(bnds)==2:
+        lvlmin = bnds[0]
+        lvlmax = bnds[1]
+        lvl=np.linspace(lvlmin, lvlmax, num=20)
+    else:
+        lvlmin = bnds[0]
+        lvlmax = bnds[-1]
+        lvl=bnds[:]
+    return lvl
+
 def get_cmap(cpal, bnds, cext='neither', cbad='w'):
     if bnds:
-        if len(bnds)==3 :
-            lvlmin = bnds[0]
-            lvlmax = bnds[1]
-            lvlint = bnds[2]
-            lvlmin = round(lvlmin/lvlint)*lvlint
-            lvlmax = round(lvlmax/lvlint)*lvlint
-            lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
-        elif len(bnds)==2:
-            lvlmin = bnds[0]
-            lvlmax = bnds[1]
-            lvl=np.linspace(lvlmin, lvlmax, num=20)
-        else:
-            lvlmin = bnds[0]
-            lvlmax = bnds[-1]
-            lvl=bnds[:]
+        lvl=get_lvl(bnds)
+        lvlmin=lvl[0] ; lvlmax=lvl[-1]
     else:
         print ' Need definition of levels (min,max) at least.'
         sys.exit(42)
@@ -157,11 +165,11 @@ def plot_s0_line(tmin,smin,tmax,smax,siglvl=[27.88, 27.8, 27.68, 27.55]):
 # ================================ extra information on plot =============
 def plot_section_line(plt,cfile_lst):
     for fsection in cfile_lst:
-        lat,lon=get_latlon(fsection,0)
-        plt.plot(lon,lat,'k-',linewidth=2.0,transform=ccrs.PlateCarree())
+        print fsection
+        lat,lon=get_latlon(fsection)
+        plt.plot(lon.squeeze(),lat.squeeze(),'k-',linewidth=2.0,transform=ccrs.PlateCarree())
 
 # ================================= NETCDF ===============================
-# get lat/lon
 def get_name(regex,varlst):
     revar = re.compile(r'\b%s\b'%regex,re.I)
     cvar  = filter(revar.match, varlst)
@@ -176,27 +184,29 @@ def get_name(regex,varlst):
     return cvar[0]
 
 def get_latlon_var(cfile):
-    # get variable list
     ncid   = nc.Dataset(cfile)
-    clon=get_name("(nav_lon|lon|longitude|glamt)",ncid.variables.keys())
-    clat=get_name("(nav_lat|lat|latitude|ghit)",ncid.variables.keys())
+    clon=get_name("(nav_lon.*|lon|longitude|glamt)",ncid.variables.keys())
+    clat=get_name("(nav_lat.*|lat|latitude|gphit)",ncid.variables.keys())
     ncid.close()
     return clat,clon
 
-def get_latlon(cfile,joffset):
+def get_latlon(cfile,offsety=None):
     clat,clon=get_latlon_var(cfile)
-    lat2d =get_2d_data(cfile,clat,0,joffset)
-    zlon2d=get_2d_data(cfile,clon,0,joffset)
-    lon2d =zlon2d.copy()
-    for i,start in enumerate(np.argmax(np.abs(np.diff(zlon2d)) > 180, axis=1)):
-        lon2d[i, start+1:] += 360
+    lat2d =get_2d_data(cfile,clat,offsety=offsety)
+    lon2d=get_2d_data(cfile,clon,offsety=offsety)
+    delta_lon=np.abs(np.diff(lon2d))
+    j_lst,i_lst=np.nonzero(delta_lon>180)
+    for jj in j_lst: 
+        if i_lst != [] :
+            ii=i_lst[jj]
+            lon2d[jj, ii+1:] += 360
     return lat2d,lon2d
 
 def get_variable_shape(ncid,ncvar):
     redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
     redimz=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
-    redimy=re.compile(r"\b(y|latitude|lat)\b", re.I)
-    redimx=re.compile(r"\b(x|lon|longitude|long)\b", re.I)
+    redimy=re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I)
+    redimx=re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I)
     dimlst = ncvar.dimensions
     if (len(ncvar.shape)==2) and redimx.match(dimlst[1]) and redimy.match(dimlst[0]):
         cshape='XY'
@@ -206,28 +216,86 @@ def get_variable_shape(ncid,ncvar):
         cshape='XYZ'
     elif (len(ncvar.shape)==4) and redimx.match(dimlst[3]) and redimy.match(dimlst[2]) and redimz.match(dimlst[1]) and redimt.match(dimlst[0]):
         cshape='XYZT'
+    else:
+        print 'cshape undefined, error'
+        print dimlst
+        sys.exit(42)
     return cshape
 
+def get_dim(cfile,cdir):
+    ncid   = nc.Dataset(cfile)
+    if cdir=='x' :
+        redim=re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I)
+    elif cdir=='y' :
+        redim=re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I)
+    elif cdir=='z' :
+        redim=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
+    elif cdir=='t' :
+        redim=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
+    else:
+        print 'dimension direction unknown, need to be x, y, z or k'
+        sys.exit(42)
+
+    cdim=filter(redim.match, ncid.dimensions.keys());
+    if (len(cdim) > 1):
+        print regex+' name list is longer than 1; error'
+        print cdim
+        sys.exit(42)
+    elif (len(cdim) == 0):
+        print cdir+' dim in '+cfile+' is 0.'
+        ndim=0
+    else:
+        cdim=cdim[0]
+        ndim=len(ncid.dimensions[cdim])
+    ncid.close()
+    return ndim
+
+def get_dims(cfile):
+    nx = get_dim(cfile,'x')
+    ny = get_dim(cfile,'y')
+    nz = get_dim(cfile,'z')
+    nt = get_dim(cfile,'t')
+    return nx,ny,nz,nt
+
 # get_2d_data
-def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=-1):
+def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     print ' reading '+cvar+' in '+cfile+' ...'
+    if not offsety:
+        nx,ny,nz,nt=get_dims(cfile)
+        offsety=ny
+
     ncid   = nc.Dataset(cfile)
     var    = ncid.variables[cvar]
     shape = get_variable_shape(ncid,var)
+
     if shape=='XY' :
         print ' 2d variable XY'
+        if (klvl > 0) :
+            print 'error klvl larger than 0 (klvl = '+str(klvl)+')'
+            sys.exit(42)
+        if (ktime > 0) :
+            print 'error ktime larger than 0 (ktime = '+str(ktime)+')'
+            sys.exit(42)
         dat2d=var[0:offsety,:]
     elif shape=='XYT' :
         print ' 3d variable XYT'
+        if (klvl > 0) :
+            print 'error klvl larger than 0 (klvl = '+str(klvl)+')'
+            sys.exit(42)
+        if (ktime > 0) :
+            print 'error ktime larger than 0 (ktime = '+str(ktime)+')'
+            sys.exit(42)
         dat2d=var[ktime,0:offsety,:]
     elif shape=='XYZ' :
         print ' 3d variable XYZ'
+        if (ktime > 0) :
+            print 'error ktime larger than 0 (ktime = '+str(ktime)+')'
+            sys.exit(42)
         dat2d=var[klvl,0:offsety,:]
     elif len(var.shape)==4 :
         print ' 4d variable XYZT'
         dat2d=var[ktime,klvl,0:offsety,:]
     else:
-        print var.shape
         print cvar+' contains '+str(len(var.shape))+' dimensions'
         print 'dimension names are '+var.dimensions
         print ' shape unknown, exit '
