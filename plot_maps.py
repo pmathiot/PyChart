@@ -120,56 +120,77 @@ def get_argument():
 def def_projection(proj_name):
     if proj_name=='south_stereo' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
-        latlon_lim=[-180, 180, -90, -60]
+        XY_lim=[-180, 180, -90, -60]
         joffset=-2
+        global_lim='F'
+        latlon_lim='T'
     elif proj_name=='ant' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
-        latlon_lim=[-180, 180, -90, -65]
+        XY_lim=[-180, 180, -90, -65]
         joffset=-2
+        global_lim='F'
+        latlon_lim='T'
     elif proj_name=='global' :
         proj=ccrs.PlateCarree()
         global_lim='T'
+        latlon_lim='F'
         joffset=-1
     elif proj_name=='natl'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-4.250e6,3.694e6,-1.546e6,6.398e6]
         joffset=-2
+        global_lim='F'
+        latlon_lim='F'
     elif proj_name=='greenland'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
         joffset=-1
+        global_lim='F'
+        latlon_lim='F'
     elif proj_name=='ovf'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
         joffset=-2
+        global_lim='F'
+        latlon_lim='F'
     elif proj_name=='japan'         :
         proj=ccrs.LambertConformal(150, 30,cutoff=10)
         XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
         joffset=-1
+        global_lim='F'
+        latlon_lim='F'
     elif proj_name=='global_robinson':
         proj=ccrs.Robinson()
-        global_lim='T'
         joffset=-1
+        global_lim='T'
+        latlon_lim='F'
     elif proj_name=='global_mercator':
         proj=ccrs.Mercator(central_longitude=-90.0)
-        global_lim='T'
         joffset=-1
+        global_lim='T'
+        latlon_lim='F'
     elif proj_name=='feroe'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
         joffset=-1
+        global_lim='F'
+        latlon_lim='F'
     elif proj_name=='gulf_stream'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-4.250e6,1.115e5,-1.546e6,2.8155e6]
         joffset=-1
+        global_lim='F'
+        latlon_lim='F'
     elif proj_name=='ross':
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0)
         XY_lim=[-6.67e5,8.33e5,1.05e6,2.47e6]
         joffset=-2
+        global_lim='F'
+        latlon_lim='F'
     else:
         print 'projection '+proj_name+' unknown'
         sys.exit(42)
-    return proj, XY_lim, joffset
+    return proj, XY_lim, joffset, global_lim, latlon_lim
 # =======================================================================================================================================================
 # get argument list
 args=get_argument()
@@ -186,7 +207,7 @@ if args.spfid:
     ctitle_lst = args.spfid[:]
     
 # get projection and extend
-proj, XY_lim, joffset = def_projection(args.p[0])
+proj, XY_lim, joffset, lglob_lim, llatlon_lim = def_projection(args.p[0])
 
 
 # deals with ref file
@@ -281,7 +302,7 @@ for ifile in range(0,nplt):
 
     # load input file
     mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
-    mapvar2d = ma.masked_where(mapvar2d==0.0,mapvar2d)
+    mapvar2d = ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
 
     # mask data
     lon2d = ma.masked_array(lon2d, mapvar2d.mask)
@@ -293,15 +314,12 @@ for ifile in range(0,nplt):
     ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj, axisbg='0.75')
 
     # put proj, extend, grid ...
-    if 'latlon_lim' in globals():
-        ax[ifile].set_extent(latlon_lim, ccrs.PlateCarree())
-    elif 'XY_lim' in globals():
-        ax[ifile].set_xlim(XY_lim[0:2]); ax[ifile].set_ylim(XY_lim[2:4]) 
-    elif global_lim:
+    if llatlon_lim:
+        ax[ifile].set_extent(XY_lim, ccrs.PlateCarree())
+    elif lglob_lim:
         ax[ifile].set_global()
     else:
-        print ' plot limit unknown, exit'
-        sys.exit(1)
+        ax[ifile].set_xlim(XY_lim[0:2]); ax[ifile].set_ylim(XY_lim[2:4]) 
 
     add_land_features(ax[ifile],['isf','lakes','land'])
     ax[ifile].gridlines()

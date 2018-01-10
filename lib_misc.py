@@ -86,12 +86,15 @@ def get_cmap(cpal, bnds, cext='neither', cbad='w'):
     nintlvl=len(lvl)-1
     if cext=='neither':
         ntotlvl=len(lvl)-1 ; imin=0 ; imax=ntotlvl
-    if cext=='both':
+    elif cext=='both':
         ntotlvl=len(lvl)+1 ; imin=1 ; imax=ntotlvl-1
-    if cext=='max':
+    elif cext=='max':
         ntotlvl=len(lvl)   ; imin=0 ; imax=ntotlvl-1
-    if cext=='min':
+    elif cext=='min':
         ntotlvl=len(lvl)   ; imin=1 ; imax=ntotlvl
+    else:
+        print 'colorbar extension should be neither, both, max or min'
+        sys.exit(42)
     cmap = plt.get_cmap(cpal,ntotlvl)
     cmap = cmap(np.arange(ntotlvl)) ; cunder=cmap[0]; cover=cmap[-1]
     cmap = cmap[imin:imax]
