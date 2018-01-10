@@ -193,192 +193,200 @@ def def_projection(proj_name):
         sys.exit(42)
     return proj, XY_lim, joffset, global_lim, latlon_lim
 # =======================================================================================================================================================
-# get argument list
-args=get_argument()
 
-# get file and title list and sanity check
-if args.mapf:
-    cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
-    mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
-print mapjk
+def main():
 
-sanity_check(args)
-
-if args.spfid:
-    ctitle_lst = args.spfid[:]
+    # get argument list
+    args=get_argument()
     
-# get projection and extend
-proj, XY_lim, joffset, lglob_lim, llatlon_lim = def_projection(args.p[0])
-
-
-# deals with ref file
-creft=''
-mapref2d=0.0
-if args.mapreff:
-    # def file list
-    if args.maprefv:
-        cmapreffile,cmaprefvar=get_file_and_varname(args.dir[0], args.mapreff[:],args.maprefv[:])
-    else:
-        cmapreffile = args.mapreff[:]
-        cmaprefvar  = cmarrunvar[:]
-    nmapreffile = len(cmapreffile)
-
-    if args.sprid:
-        creft=' - '+args.sprid[0]
-    print nmapreffile,' ref',cmapreffile[0],args.mapreff 
-    if nmapreffile==1 :
-        mapref2d=get_2d_data(cmapreffile[0],cmaprefvar[0],klvl=mapjk,offsety=joffset)
-    else:
-        print 'more than 1 ref file, not yet implememnnted'
-        sys.exit(42)
-
-if args.cntf:
     # get file and title list and sanity check
-    ccntrunfile,ccntrunvar=get_file_and_varname(args.dir[0], args.cntf[:],args.cntv[:])
-    cntjk=get_jk(args.cntjk,args.cntz,ccntrunfile[0])
-    print cntjk, args.cntjk
-    cntlvl=get_lvl(args.cntlvl)
-    cntclr=[None]*len(cntlvl)
-    for ii, val in enumerate(cntlvl):
-        if val<0:
-            cntclr[ii]='0.75'
-        if val >=0:
-            cntclr[ii]='k'
-
-    if args.cntreff:
-        cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],klvl=cntjk,offsety=joffset)
-    else:
-        cntref2dm = 0.0
-
-
-
-# get whole figure title
-fig_title=cmaprunvar[0]
-if args.ft:
-    fig_title=args.ft[0]
-
-# get color bar
-cextend=args.cbext[0]
-cmap, maplvl, rmin, rmax = get_cmap(args.cbn[0],args.cblvl,cext=cextend)
-
-# get map/cnt scale factor
-map_sf=args.mapsf[0]
-cnt_sf=args.cntsf[0]
-
-# get subplot disposition
-if args.mapf:
-    nplt=len(cmaprunfile)
-elif args.cntf:
-    nplt=len(ccntrunfile)
-nisplt,njsplt = get_subplot(args.sp[0],nplt)
-
-# supplot title prefix
-csubplt_title=['']
-if nplt > 1:
-    csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
-
-# initialisation
-ax = [None] * nplt
-
-# define figure dimension
-plt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
-
-for ifile in range(0,nplt):
-
-    # initialisation msk
-    msk = 1.0
-    if args.mask:
-    # deals with mesh mask 
-        cmsk=args.mask[ifile]
-        if os.path.isfile(cmsk):
-           print 'open '+cmsk
-           msk = get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
-           msk = ma.masked_where(msk==0.0,msk)
-
-    if args.mesh:
-        cmesh=args.mesh[ifile]
-        lat2d,lon2d=get_latlon(cmesh,joffset) 
-    else:
-        lat2d,lon2d=get_latlon(cmaprunfile[ifile],joffset) 
-
-    # load input file
-    mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
-    mapvar2d = ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
-
-    # mask data
-    lon2d = ma.masked_array(lon2d, mapvar2d.mask)
-    lat2d = ma.masked_array(lat2d, mapvar2d.mask)
-    if args.mapreff:
-        mapref2d = ma.masked_array(mapref2d, mapvar2d.mask)
-
-    # define subplot
-    ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj, axisbg='0.75')
-
-    # put proj, extend, grid ...
-    if llatlon_lim:
-        ax[ifile].set_extent(XY_lim, ccrs.PlateCarree())
-    elif lglob_lim:
-        ax[ifile].set_global()
-    else:
-        ax[ifile].set_xlim(XY_lim[0:2]); ax[ifile].set_ylim(XY_lim[2:4]) 
-
-    add_land_features(ax[ifile],['isf','lakes','land'])
-    ax[ifile].gridlines()
-    ax[ifile].set_title(csubplt_title[ifile]+ctitle_lst[ifile]+creft)
-
-    # make plot
     if args.mapf:
-    # could be an option to not plot the map
-        #pcol = ax[ifile].contourf(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,levels=maplvl,transform=ccrs.PlateCarree(),rasterized=True,extend=cextend)
-        print 'plot pcolormesh ...'
-        pcol = ax[ifile].pcolormesh(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,transform=ccrs.PlateCarree(),rasterized=True)
-        pass
-
-    # could be an option to add a contour over the map
-    if args.cntf:
-        var2d=get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
-        var2dm = ma.masked_where(var2d==0.0,var2d)
-        if args.cntreff:
-            cntref2dm = ma.masked_where(msk*cntref2d==0.0,cntref2d)
-
-        print 'plot contour ...'
-        ax[ifile].contour(lon2d,lat2d,(var2dm-cntref2dm)*cnt_sf,levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
+        cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
+        mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
+    
+    sanity_check(args)
+   
+    # get title list for each subplot 
+    if args.spfid:
+        ctitle_lst = args.spfid[:]
         
-    if args.bathyf:
-        bathy2d=get_2d_data(args.bathyf[ifile],args.bathyv[0],offsety=joffset)
-        bathy2dm = ma.masked_where(bathy2d==0.0,bathy2d)
-        print 'plot bathymetry ...'
-        ax[ifile].contour(lon2d,lat2d,bathy2dm,levels=args.bathylvl[:],transform=ccrs.PlateCarree(),colors='0.5',linewidths=0.5)
+    # get projection and extend
+    proj, XY_lim, joffset, lglob_lim, llatlon_lim = def_projection(args.p[0])
+    
+    # deals with ref file
+    creft=''
+    mapref2d=0.0
+    if args.mapreff:
+        # def file list
+        if args.maprefv:
+            cmapreffile,cmaprefvar=get_file_and_varname(args.dir[0], args.mapreff[:],args.maprefv[:])
+        else:
+            cmapreffile = args.mapreff[:]
+            cmaprefvar  = cmarrunvar[:]
+        nmapreffile = len(cmapreffile)
+    
+        if args.sprid:
+            creft=' - '+args.sprid[0]
+        print nmapreffile,' ref',cmapreffile[0],args.mapreff 
+        if nmapreffile==1 :
+            mapref2d=get_2d_data(cmapreffile[0],cmaprefvar[0],klvl=mapjk,offsety=joffset)
+        else:
+            print 'more than 1 ref file, not yet implememnnted'
+            sys.exit(42)
+    
+    if args.cntf:
+        # get file and title list and sanity check
+        ccntrunfile,ccntrunvar=get_file_and_varname(args.dir[0], args.cntf[:],args.cntv[:])
+        cntjk=get_jk(args.cntjk,args.cntz,ccntrunfile[0])
+        print cntjk, args.cntjk
+        cntlvl=get_lvl(args.cntlvl)
+        cntclr=[None]*len(cntlvl)
+        for ii, val in enumerate(cntlvl):
+            if val<0:
+                cntclr[ii]='0.75'
+            if val >=0:
+                cntclr[ii]='k'
+    
+        if args.cntreff:
+            cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],klvl=cntjk,offsety=joffset)
+        else:
+            cntref2dm = 0.0
+    
+    
+    
+    # get whole figure title
+    fig_title=cmaprunvar[0]
+    if args.ft:
+        fig_title=args.ft[0]
+    
+    # get map colorbar
+    cextend=args.cbext[0]
+    cmap, maplvl, rmin, rmax = get_cmap(args.cbn[0],args.cblvl,cext=cextend)
+    
+    # get map/cnt scale factor
+    map_sf=args.mapsf[0]
+    cnt_sf=args.cntsf[0]
+    
+    # get subplot disposition
+    if args.mapf:
+        nplt=len(cmaprunfile)
+    elif args.cntf:
+        nplt=len(ccntrunfile)
+    nisplt,njsplt = get_subplot(args.sp[0],nplt)
+    
+    # supplot title prefix
+    csubplt_title=['']
+    if nplt > 1:
+        csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
+    
+    # initialisation
+    ax = [None] * nplt
+    
+    # define figure dimension
+    plt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
+    
+    for ifile in range(0,nplt):
+    
+        # initialisation msk
+        msk = 1.0
+        if args.mask:
+        # deals with mesh mask 
+            cmsk=args.mask[ifile]
+            if os.path.isfile(cmsk):
+               print 'open '+cmsk
+               msk = get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
+               msk = ma.masked_where(msk==0.0,msk)
+    
+        if args.mesh:
+            cmesh=args.mesh[ifile]
+            lat2d,lon2d=get_latlon(cmesh,joffset) 
+        else:
+            lat2d,lon2d=get_latlon(cmaprunfile[ifile],joffset) 
+    
+        # load input file
+        mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
+        mapvar2d = ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
+    
+        # mask data
+        lon2d = ma.masked_array(lon2d, mapvar2d.mask)
+        lat2d = ma.masked_array(lat2d, mapvar2d.mask)
+        if args.mapreff:
+            mapref2d = ma.masked_array(mapref2d, mapvar2d.mask)
+    
+        # define subplot
+        ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj, axisbg='0.75')
+    
+        # put proj, extend, grid ...
+        if llatlon_lim:
+            ax[ifile].set_extent(XY_lim, ccrs.PlateCarree())
+        elif lglob_lim:
+            ax[ifile].set_global()
+        else:
+            ax[ifile].set_xlim(XY_lim[0:2]); ax[ifile].set_ylim(XY_lim[2:4]) 
+    
+        add_land_features(ax[ifile],['isf','lakes','land'])
+        ax[ifile].gridlines()
+        ax[ifile].set_title(csubplt_title[ifile]+ctitle_lst[ifile]+creft)
+    
+        # make plot
+        if args.mapf:
+        # could be an option to not plot the map
+            #pcol = ax[ifile].contourf(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,levels=maplvl,transform=ccrs.PlateCarree(),rasterized=True,extend=cextend)
+            print 'plot pcolormesh ...'
+            pcol = ax[ifile].pcolormesh(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,transform=ccrs.PlateCarree(),rasterized=True)
+            pass
+    
+        # add contour if ask
+        if args.cntf:
+            var2d=get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
+            var2dm = ma.masked_where(var2d==0.0,var2d)
+            if args.cntreff:
+                cntref2dm = ma.masked_where(msk*cntref2d==0.0,cntref2d)
+    
+            print 'plot contour ...'
+            ax[ifile].contour(lon2d,lat2d,(var2dm-cntref2dm)*cnt_sf,levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
+            
+        # add bathy line if ask
+        if args.bathyf:
+            bathy2d=get_2d_data(args.bathyf[ifile],args.bathyv[0],offsety=joffset)
+            bathy2dm = ma.masked_where(bathy2d==0.0,bathy2d)
+            print 'plot bathymetry ...'
+            ax[ifile].contour(lon2d,lat2d,bathy2dm,levels=args.bathylvl[:],transform=ccrs.PlateCarree(),colors='0.5',linewidths=0.5)
+    
+        # add section line if ask
+        if args.secf:
+            print 'plot section line'
+            plot_section_line(ax[ifile],args.secf[:])
+    
+    # remove extra white space
+    hpx=0.06+0.035*njsplt
+    plt.subplots_adjust(left=0.01,right=0.88, bottom=0.01, top=0.89, wspace=0.1, hspace=hpx)
+    
+    # get_figure_corner position
+    xl, yb, xr, yt = get_plt_bound(ax, nplt) # left, bottom, right, top
+    
+    # add common colorbar
+    if args.mapf:
+        add_colorbar(plt,pcol,xl,yb,xr,yt,lvl=maplvl[:],cunit=args.cbu[0],cfmt=args.cbfmt[0],cext=cextend)
+    
+    # put whole figure title
+    add_title(plt,fig_title,xl,yb,xr,yt)
+    
+    # get figure name
+    if args.o:
+        coutput_name=args.o[0]
+    else:
+        coutput_name=def_output_name(args,outxt,cvar,mapjk,args.p[0])
+    
+    # argument lst output
+    output_argument_lst(coutput_name+'.txt',sys.argv)
+    
+    # save figure
+    plt.savefig(coutput_name+'.png', format='png', dpi=150)
+    
+    # show figure
+    plt.show()
 
-    if args.secf:
-        print 'plot section line'
-        plot_section_line(ax[ifile],args.secf[:])
+if __name__ == '__main__':
+    main()
 
-# remove extra white space
-hpx=0.06+0.035*njsplt
-plt.subplots_adjust(left=0.01,right=0.88, bottom=0.01, top=0.89, wspace=0.1, hspace=hpx)
-
-# get_figure_corner position
-xl, yb, xr, yt = get_plt_bound(ax, nplt) # left, bottom, right, top
-
-# add common colorbar
-if args.mapf:
-    add_colorbar(plt,pcol,xl,yb,xr,yt,lvl=maplvl[:],cunit=args.cbu[0],cfmt=args.cbfmt[0],cext=cextend)
-
-# put whole figure title
-add_title(plt,fig_title,xl,yb,xr,yt)
-
-# get figure name
-if args.o:
-    coutput_name=args.o[0]
-else:
-    coutput_name=def_output_name(args,outxt,cvar,mapjk,args.p[0])
-
-# argument lst output
-output_argument_lst(coutput_name+'.txt',sys.argv)
-
-# save figure
-plt.savefig(coutput_name+'.png', format='png', dpi=150)
-
-# show figure
-plt.show()
