@@ -109,12 +109,12 @@ def get_argument():
     parser.add_argument("--cntrefv" , metavar='contour ref var '         , help="contour reference variable"     , type=str  , nargs=1  , required=False)
     parser.add_argument("--cntsf"   , metavar='contour data scale factor', help="contour data scale factor"      , type=float, nargs=1  , default=[1.0]    , required=False)
     parser.add_argument("--cntjk"   , metavar='contour jk level'         , help="contour jk level "              , type=int  , nargs=1  , required=False)
-    parser.add_argument("--cntz"    , metavar='contour jk level'         , help="contour jk level "              , type=float, nargs=1  , required=False)
+    parser.add_argument("--cntz"    , metavar='contour depth in m'       , help="contour depth in m"             , type=float, nargs=1  , required=False)
     parser.add_argument("--cntlvl"  , metavar='contour line level'       , help="contour line level"             , type=float, nargs="+", required=False)
     parser.add_argument("--bathyf"  , metavar='bathy file'               , help="bathy file"                     , type=str  , nargs="+", required=False)
     parser.add_argument("--bathyv"  , metavar='bathy var '               , help="contour variable"               , type=str  , nargs=1  , required=False)
     parser.add_argument("--bathylvl", metavar='contour line level'       , help="contour line level"             , type=float, nargs="+", required=False)
-    parser.add_argument("--secf"    , metavar='section line file'        , help="section file describing one particular section to plot", type=str  , nargs="+"  , required=False)
+    parser.add_argument("--secf"    , metavar='section line file list '  , help="section file list describing section to plot", type=str, nargs="+", required=False)
     return parser.parse_args()
 
 def def_projection(proj_name):
