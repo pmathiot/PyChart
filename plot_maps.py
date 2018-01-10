@@ -189,6 +189,7 @@ def def_projection(proj_name):
         latlon_lim='F'
     else:
         print 'projection '+proj_name+' unknown'
+        print 'should be ross, gulf_stream, feroe, global_mercator, global_robinson, japan, ovf, greenland, natl, global, south_stereo, ant'
         sys.exit(42)
     return proj, XY_lim, joffset, global_lim, latlon_lim
 # =======================================================================================================================================================
