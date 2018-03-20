@@ -38,6 +38,7 @@ def sanity_check(args):
 
 def get_jk(jk0=None,z0=None,cfile=None):
     jk=0
+    print jk0, z0, cfile
     if cfile:
         if jk0 and z0:
             print 'ERROR, jk and z define, check script argument list'
@@ -45,7 +46,7 @@ def get_jk(jk0=None,z0=None,cfile=None):
         if jk0:
             jk=jk0[0]
         elif z0:
-            jk=get_k_level(z0[0],cfile[0])
+            jk=get_k_level(z0,cfile)
     return jk
 
 def get_var_lst(cvar,cfile):
