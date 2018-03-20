@@ -44,7 +44,7 @@ def add_land_features(ax,cfeature_lst):
         elif cfeat=='coast':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'coastline'                  , '50m',facecolor='0.75',edgecolor='k')
         elif cfeat=='land':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'land'                       , '50m',facecolor='0.75',edgecolor='k')
+            feature = cartopy.feature.NaturalEarthFeature('physical', 'land'                       , '50m',facecolor='none',edgecolor='k') # '0.75'
         elif cfeat=='bathy_z1000':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'          , '10m',facecolor='none',edgecolor='k')
         elif cfeat=='bathy_z2000':
@@ -95,6 +95,7 @@ def get_cmap(cpal, bnds, cext='neither', cbad='w'):
     else:
         print 'colorbar extension should be neither, both, max or min'
         sys.exit(42)
+    print ntotlvl, cpal
     cmap = plt.get_cmap(cpal,ntotlvl)
     cmap = cmap(np.arange(ntotlvl)) ; cunder=cmap[0]; cover=cmap[-1]
     cmap = cmap[imin:imax]
@@ -102,7 +103,8 @@ def get_cmap(cpal, bnds, cext='neither', cbad='w'):
     cmap.set_bad(cbad, 1.0)
     cmap.set_under(cunder)
     cmap.set_over(cover)
-    return cmap,lvl,lvlmin,lvlmax
+    norm = colors.BoundaryNorm(boundaries=lvl, ncolors=nintlvl)
+    return cmap,norm,lvl,lvlmin,lvlmax
 
 # ============================ LEGEND ==================================
 def get_corner(ax):
@@ -144,7 +146,7 @@ def add_colorbar(plt,cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither
 
 def add_title(plt,ctitle,x0,y0,x1,y1):
     cax  = plt.axes([x0, y1, x1-x0, 1-y1])
-    cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='center',fontsize=16)
+    cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=16)
     cax.axis('off')
 
 # ======================= TS diag ====================================
@@ -188,14 +190,14 @@ def get_name(regex,varlst):
 
 def get_latlon_var(cfile):
     ncid   = nc.Dataset(cfile)
-    clon=get_name("(nav_lon.*|lon|longitude|glamt)",ncid.variables.keys())
-    clat=get_name("(nav_lat.*|lat|latitude|gphit)",ncid.variables.keys())
+    clon=get_name("(glamt|nav_lon.*|lon|longitude)",ncid.variables.keys())
+    clat=get_name("(gphit|nav_lat.*|lat|latitude)",ncid.variables.keys())
     ncid.close()
     return clat,clon
 
 def get_latlon(cfile,offsety=None):
     clat,clon=get_latlon_var(cfile)
-    lat2d =get_2d_data(cfile,clat,offsety=offsety)
+    lat2d=get_2d_data(cfile,clat,offsety=offsety)
     lon2d=get_2d_data(cfile,clon,offsety=offsety)
     delta_lon=np.abs(np.diff(lon2d))
     j_lst,i_lst=np.nonzero(delta_lon>180)
@@ -268,7 +270,8 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
         offsety=ny
 
     ncid   = nc.Dataset(cfile)
-    var    = ncid.variables[cvar]
+    clvar   = get_name(cvar,ncid.variables.keys())
+    var    = ncid.variables[clvar]
     shape = get_variable_shape(ncid,var)
 
     if shape=='XY' :

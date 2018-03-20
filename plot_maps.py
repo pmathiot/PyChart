@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('GTKAgg') 
 import numpy as np
 from numpy import ma
 import os
@@ -13,7 +15,7 @@ import re
 from cartopy.feature import LAND
 sys.path.insert(0,'/home/h05/pmathiot/PYTHON/PYCHART_GIT/')
 from lib_misc import *
-matplotlib.use('GTKAgg') 
+#matplotlib.use('GTKAgg') 
 
 def def_output_name(arg_output,cext,cvar,jk,cproj):
     if arg_output:
@@ -139,20 +141,26 @@ def def_projection(proj_name):
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-4.250e6,3.694e6,-1.546e6,6.398e6]
         joffset=-2
-        global_lim='F'
-        latlon_lim='F'
+        global_lim=False
+        latlon_lim=False
     elif proj_name=='greenland'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
         joffset=-1
-        global_lim='F'
-        latlon_lim='F'
+        global_lim=False
+        latlon_lim=False
     elif proj_name=='ovf'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
         joffset=-2
-        global_lim='F'
-        latlon_lim='F'
+        global_lim=False
+        latlon_lim=False
+    elif proj_name=='irminger'         :
+        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+        XY_lim=[-2.164e5,1.395e6,1.635e6,3.265e6]
+        joffset=-2
+        global_lim=False
+        latlon_lim=False
     elif proj_name=='japan'         :
         proj=ccrs.LambertConformal(150, 30,cutoff=10)
         XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
@@ -212,6 +220,7 @@ def main():
         
     # get projection and extend
     proj, XY_lim, joffset, lglob_lim, llatlon_lim = def_projection(args.p[0])
+    print proj, XY_lim, joffset, lglob_lim, llatlon_lim 
     
     # deals with ref file
     creft=''
@@ -261,7 +270,7 @@ def main():
     
     # get map colorbar
     cextend=args.cbext[0]
-    cmap, maplvl, rmin, rmax = get_cmap(args.cbn[0],args.cblvl,cext=cextend)
+    cmap, norm, maplvl, rmin, rmax = get_cmap(args.cbn[0],args.cblvl,cext=cextend)
     
     # get map/cnt scale factor
     map_sf=args.mapsf[0]
@@ -283,7 +292,8 @@ def main():
     ax = [None] * nplt
     
     # define figure dimension
-    plt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
+    plt.figure(figsize=np.array([297,297*njsplt/nisplt]) / 25.4)
+    #lt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
     
     for ifile in range(0,nplt):
     
@@ -317,6 +327,7 @@ def main():
         ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj, axisbg='0.75')
     
         # put proj, extend, grid ...
+        print llatlon_lim
         if llatlon_lim:
             ax[ifile].set_extent(XY_lim, ccrs.PlateCarree())
         elif lglob_lim:
@@ -329,12 +340,12 @@ def main():
         ax[ifile].set_title(csubplt_title[ifile]+ctitle_lst[ifile]+creft)
     
         # make plot
+        ncrs=1
         if args.mapf:
         # could be an option to not plot the map
-            #pcol = ax[ifile].contourf(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,levels=maplvl,transform=ccrs.PlateCarree(),rasterized=True,extend=cextend)
             print 'plot pcolormesh ...'
-            pcol = ax[ifile].pcolormesh(lon2d,lat2d,(mapvar2d-mapref2d)*map_sf,cmap=cmap,vmin=rmin,vmax=rmax,transform=ccrs.PlateCarree(),rasterized=True)
-            pass
+            maptoplot2d=(mapvar2d-mapref2d)*map_sf
+            pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs],cmap=cmap,norm=norm,vmin=rmin,vmax=rmax,transform=ccrs.PlateCarree(),rasterized=True)
     
         # add contour if ask
         if args.cntf:
@@ -344,7 +355,8 @@ def main():
                 cntref2dm = ma.masked_where(msk*cntref2d==0.0,cntref2d)
     
             print 'plot contour ...'
-            ax[ifile].contour(lon2d,lat2d,(var2dm-cntref2dm)*cnt_sf,levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
+            cnttoplot=(var2dm-cntref2dm)*cnt_sf
+            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot[iimin:iimax:ncrs,jjmin:jjmax:ncrs],levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
             
         # add bathy line if ask
         if args.bathyf:
