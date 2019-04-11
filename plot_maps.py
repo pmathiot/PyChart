@@ -1,5 +1,7 @@
+#!/usr/local/sci/bin/python2.7
+
 import matplotlib
-matplotlib.use('GTKAgg') 
+#matplotlib.use('GTKAgg') 
 import numpy as np
 from numpy import ma
 import os
@@ -38,7 +40,6 @@ def sanity_check(args):
 
 def get_jk(jk0=None,z0=None,cfile=None):
     jk=0
-    print jk0, z0, cfile
     if cfile:
         if jk0 and z0:
             print 'ERROR, jk and z define, check script argument list'
@@ -51,6 +52,7 @@ def get_jk(jk0=None,z0=None,cfile=None):
 
 def get_var_lst(cvar,cfile):
     cvar_lst=cvar
+    nvar=len(cvar_lst)
     nfile=len(cfile)
     if len(cvar) == 1:
         print 'Length of variable list is 1, we assume it is the same variable for all input file'
@@ -121,9 +123,21 @@ def get_argument():
     return parser.parse_args()
 
 def def_projection(proj_name):
-    if proj_name=='south_stereo' : 
+    if proj_name=='ortho_natl' :
+        proj=ccrs.Orthographic(central_longitude=-60.0, central_latitude=45.0)
+        joffset=-1
+        XY_lim=[-180, 180, -90, -60]
+        global_lim=True
+        latlon_lim=False
+    elif proj_name=='south_stereo' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
         XY_lim=[-180, 180, -90, -60]
+        joffset=-2
+        global_lim='F'
+        latlon_lim='T'
+    elif proj_name=='south_ocean' : 
+        proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
+        XY_lim=[-180, 180, -90, -45]
         joffset=-2
         global_lim='F'
         latlon_lim='T'
@@ -133,14 +147,21 @@ def def_projection(proj_name):
         joffset=-2
         global_lim='F'
         latlon_lim='T'
+    elif proj_name=='arctic' : 
+        proj=ccrs.Stereographic(central_latitude=90.0, central_longitude=0.0)
+        XY_lim=[-180, 180, 60, 90]
+        joffset=-2
+        global_lim='F'
+        latlon_lim='T'
     elif proj_name=='global' :
         proj=ccrs.PlateCarree()
-        global_lim='T'
-        latlon_lim='F'
+        XY_lim=[0, 360, -90, 90]
+        global_lim=True
+        latlon_lim=False
         joffset=-1
     elif proj_name=='natl'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-        XY_lim=[-4.250e6,3.694e6,-1.546e6,6.398e6]
+        XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
         joffset=-2
         global_lim=False
         latlon_lim=False
@@ -153,6 +174,12 @@ def def_projection(proj_name):
     elif proj_name=='ovf'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
+        joffset=-2
+        global_lim=False
+        latlon_lim=False
+    elif proj_name=='ovf_larger'         :
+        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+        XY_lim=[-2.5e5,2.45e6,0.9e6,3.6e6]
         joffset=-2
         global_lim=False
         latlon_lim=False
@@ -170,14 +197,16 @@ def def_projection(proj_name):
         latlon_lim='F'
     elif proj_name=='global_robinson':
         proj=ccrs.Robinson()
+        XY_lim=[0, 360, -90, 90]
         joffset=-1
         global_lim='T'
         latlon_lim='F'
     elif proj_name=='global_mercator':
         proj=ccrs.Mercator(central_longitude=-90.0)
+        XY_lim=[0, 360, -90, 90]
         joffset=-1
-        global_lim='T'
-        latlon_lim='F'
+        global_lim=True
+        latlon_lim=False
     elif proj_name=='feroe'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
@@ -221,7 +250,6 @@ def main():
         
     # get projection and extend
     proj, XY_lim, joffset, lglob_lim, llatlon_lim = def_projection(args.p[0])
-    print proj, XY_lim, joffset, lglob_lim, llatlon_lim 
     
     # deals with ref file
     creft=''
@@ -232,7 +260,7 @@ def main():
             cmapreffile,cmaprefvar=get_file_and_varname(args.dir[0], args.mapreff[:],args.maprefv[:])
         else:
             cmapreffile = args.mapreff[:]
-            cmaprefvar  = cmarrunvar[:]
+            cmaprefvar  = cmaprunvar[:]
         nmapreffile = len(cmapreffile)
     
         if args.sprid:
@@ -248,7 +276,6 @@ def main():
         # get file and title list and sanity check
         ccntrunfile,ccntrunvar=get_file_and_varname(args.dir[0], args.cntf[:],args.cntv[:])
         cntjk=get_jk(args.cntjk,args.cntz,ccntrunfile[0])
-        print cntjk, args.cntjk
         cntlvl=get_lvl(args.cntlvl)
         cntclr=[None]*len(cntlvl)
         for ii, val in enumerate(cntlvl):
@@ -298,6 +325,9 @@ def main():
     
     for ifile in range(0,nplt):
     
+        # load input file
+        mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
+
         # initialisation msk
         msk = 1.0
         if args.mask:
@@ -314,8 +344,6 @@ def main():
         else:
             lat2d,lon2d=get_latlon(cmaprunfile[ifile],joffset) 
     
-        # load input file
-        mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
         mapvar2d = ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
     
         # mask data
@@ -328,11 +356,10 @@ def main():
         ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj, axisbg='0.75')
     
         # put proj, extend, grid ...
-        print llatlon_lim
         if llatlon_lim:
             ax[ifile].set_extent(XY_lim, ccrs.PlateCarree())
         elif lglob_lim:
-            ax[ifile].set_global()
+             ax[ifile].set_global()
         else:
             ax[ifile].set_xlim(XY_lim[0:2]); ax[ifile].set_ylim(XY_lim[2:4]) 
     
@@ -357,7 +384,7 @@ def main():
     
             print 'plot contour ...'
             cnttoplot=(var2dm-cntref2dm)*cnt_sf
-            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot[iimin:iimax:ncrs,jjmin:jjmax:ncrs],levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
+            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot[::ncrs,::ncrs],levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
             
         # add bathy line if ask
         if args.bathyf:
@@ -398,6 +425,7 @@ def main():
     plt.savefig(coutput_name+'.png', format='png', dpi=150)
     
     # show figure
+    print 'show figure ...'
     plt.show()
 
 if __name__ == '__main__':
