@@ -38,13 +38,14 @@ def add_land_features(ax,cfeature_lst):
 # get isf groiunding line, ice shelf front and coastline
     for ifeat,cfeat in enumerate(cfeature_lst):
         if cfeat=='isf':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_lines', '50m',facecolor='none',edgecolor='k')
+            #feature = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m',facecolor='0.75',edgecolor='k') # global plot
+            feature = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m',facecolor='none',edgecolor='k')
         elif cfeat=='lakes':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'lakes'                      , '50m',facecolor='none',edgecolor='k')
         elif cfeat=='coast':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'coastline'                  , '50m',facecolor='0.75',edgecolor='k')
         elif cfeat=='land':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'land'                       , '50m',facecolor='none',edgecolor='k') # '0.75'
+            feature = cartopy.feature.NaturalEarthFeature('physical', 'land'                       , '50m',facecolor='0.75',edgecolor='k')
         elif cfeat=='bathy_z1000':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'          , '10m',facecolor='none',edgecolor='k')
         elif cfeat=='bathy_z2000':
@@ -95,11 +96,12 @@ def get_cmap(cpal, bnds, cext='neither', cbad='w'):
     else:
         print 'colorbar extension should be neither, both, max or min'
         sys.exit(42)
-    print ntotlvl, cpal
+
     cmap = plt.get_cmap(cpal,ntotlvl)
     cmap = cmap(np.arange(ntotlvl)) ; cunder=cmap[0]; cover=cmap[-1]
     cmap = cmap[imin:imax]
     cmap=colors.LinearSegmentedColormap.from_list("cmap", cmap, nintlvl)
+    #cmap.set_bad(cbad, 0.0) # needed for global plot !!!!!
     cmap.set_bad(cbad, 1.0)
     cmap.set_under(cunder)
     cmap.set_over(cover)
@@ -170,7 +172,6 @@ def plot_s0_line(tmin,smin,tmax,smax,siglvl=[27.88, 27.8, 27.68, 27.55]):
 # ================================ extra information on plot =============
 def plot_section_line(plt,cfile_lst):
     for fsection in cfile_lst:
-        print fsection
         lat,lon=get_latlon(fsection)
         plt.plot(lon.squeeze(),lat.squeeze(),'k-',linewidth=2.0,transform=ccrs.PlateCarree())
 
@@ -201,17 +202,17 @@ def get_latlon(cfile,offsety=None):
     lon2d=get_2d_data(cfile,clon,offsety=offsety)
     delta_lon=np.abs(np.diff(lon2d))
     j_lst,i_lst=np.nonzero(delta_lon>180)
-    for jj in j_lst: 
-        if i_lst != [] :
-            ii=i_lst[jj]
-            lon2d[jj, ii+1:] += 360
+    print j_lst.shape, i_lst.shape
+    for idx in range(0,len(j_lst)): 
+        lon2d[j_lst[idx], i_lst[idx]+1:] += 360
+    print 'end'
     return lat2d,lon2d
 
 def get_variable_shape(ncid,ncvar):
     redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
     redimz=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
-    redimy=re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I)
-    redimx=re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I)
+    redimy=re.compile(r"\b(y|y_grid_.+|latitude|lat|nj)\b", re.I)
+    redimx=re.compile(r"\b(x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
     dimlst = ncvar.dimensions
     if (len(ncvar.shape)==2) and redimx.match(dimlst[1]) and redimy.match(dimlst[0]):
         cshape='XY'
@@ -312,7 +313,7 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
 def get_k_level(zlvl, cfile):
     # open netcdf
     ncid = nc.Dataset(cfile)
-    cvar = get_name("(z|dep|depth|deptht)",ncid.variables.keys())
+    cvar = get_name("(z|dep|depth|deptht|depthw)",ncid.variables.keys())
     zdep = ncid.variables[cvar][:].squeeze()
 
     z0=zlvl[0]
@@ -321,7 +322,6 @@ def get_k_level(zlvl, cfile):
         if np.abs(zdep[jk]-z0) < err0:
             jk0=jk
             err0=np.abs(zdep[jk]-z0)
-    print 'the closest level to the requiered depth is: '
-    print jk0,zdep[jk0]
-    return jk0
+    print 'the closest level to the requiered depth is: ', jk0
+    return jk0, zdep[jk0]
 
