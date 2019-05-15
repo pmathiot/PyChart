@@ -63,16 +63,13 @@ def get_lvl(bnds):
         lvlmin = bnds[0]
         lvlmax = bnds[1]
         lvlint = bnds[2]
-        lvlmin = round(lvlmin/lvlint)*lvlint
-        lvlmax = round(lvlmax/lvlint)*lvlint
+        lvlmax = lvlmin+round((lvlmax-lvlmin)/lvlint)*lvlint
         lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
     elif len(bnds)==2:
         lvlmin = bnds[0]
         lvlmax = bnds[1]
         lvl=np.linspace(lvlmin, lvlmax, num=20)
     else:
-        lvlmin = bnds[0]
-        lvlmax = bnds[-1]
         lvl=bnds[:]
     return lvl
 
