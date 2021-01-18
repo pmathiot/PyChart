@@ -78,7 +78,7 @@ with environment.yml being the environement file described above.
 
 ### Contour options:
 
-Same option as for the map but with 'cnt' prefixe instead of 'map'.
+Same options as for the map but with 'cnt' prefixe instead of 'map' are available.
 
 ### Color map options:
 
@@ -92,7 +92,7 @@ Same option as for the map but with 'cnt' prefixe instead of 'map'.
 [--cbext]: define if you want to extend the colorbar ['min', 'max', 'both'].
 ```
 
-### Mesh mask and Bathymetry option:
+### Mesh mask and Bathymetry options:
 
 ```
 [--mesh]    : mesh or coordinate file to use (1 file or 1 per --mapf)
