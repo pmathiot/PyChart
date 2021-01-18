@@ -63,12 +63,17 @@ with environment.yml being the environement file described above.
 
 ```
 [--mapf]    : list of file to plot (X files => X subplots)
-[--mapv]    : list of variable to plot (1 variable only (same variable is assume for all the plots or 1 variable per --mapf files)
-[--mapreff] : reference file for comparison purposes (--mapf file - --mapreff file will be plot)
+[--mapv]    : list of variable to plot. 
+              1 variable only (same variable is assume for all the plots 
+              or 1 variable per --mapf files
+[--mapreff] : reference file for comparison purposes. 
+              [--mapf] file - [--mapreff] file will be plot.
 [--mapreff] : variable to use in the --mapreff file
-[--mapsf]   : scale factor to use if different to 1 (useful for transport for example, see example)
+[--mapsf]   : scale factor to use if different to 1.
+              useful for transport for example, see example.
 [--mapjk]   : jk level to plot (level 1)
-[--mapz]    : instead of --mapjk, user can specify --mapz in m. In this case, the closest level to --mapz will be ploted. 
+[--mapz]    : instead of --mapjk, user can specify --mapz in m.
+              In this case, the closest level to --mapz will be ploted. 
 ```
 
 ### Contour options:
@@ -80,9 +85,11 @@ Same option as for the map but with 'cnt' prefixe instead of 'map'.
 ```
 [--cbn]  : name of the python cmap to use (default 'jet')
 [--cbu]  : unit of colormap (will be plotted on top of the colorbar, see example)
-[--cblvl]: define the range of value to plot and the number of color to plot (cmin cmax cint (if cint is missing default is 10) or list of values for irregular colorbar)
+[--cblvl]: define the range of value to plot and the number of color to plot.
+           [cmin cmax cint] (if cint is missing default is 10)
+           or list of values for irregular colorbar.
 [--cbfmt]: format of the colorbar text label
-[--cbext]: define if you want to extend the colorbar (small triangle on top and at bottom of colorbar (min, max, both)
+[--cbext]: define if you want to extend the colorbar ['min', 'max', 'both'].
 ```
 
 ### Mesh mask and Bathymetry option:
@@ -101,7 +108,8 @@ Same option as for the map but with 'cnt' prefixe instead of 'map'.
 [-ft]    : Figure title (see example)
 [--spfid]: subplot title (see example)
 [--sprid]: name of the reference (subplot title will be in this case [--spfid] - [--sprid])
-[--sp]   : subplot disposition (X x Y). The number of subplot need to be larger than the number of [--mapf] files.
+[--sp]   : subplot disposition (X x Y). 
+           The number of subplot need to be larger than the number of [--mapf] files.
 [-p]     : projection name
 ```
 
