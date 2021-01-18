@@ -17,7 +17,7 @@ def output_argument_lst(cfile, arglst):
 
 # ============================ file parser =====================================
 def parse_dbfile(cfile,key_lst):
-    print 'open file '+cfile
+    print('open file '+cfile)
     val_lst=[None]*len(key_lst)
     with open(cfile) as fid:
        for ikey,ckey in enumerate(key_lst):
@@ -53,7 +53,7 @@ def add_land_features(ax,cfeature_lst):
         elif cfeat=='bathy_z3000':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_H_3000'          , '10m',facecolor='none',edgecolor='k')
         else:
-            print 'feature unknown : '+cfeat
+            print('feature unknown : '+cfeat)
             sys.exit(42)
         ax.add_feature(feature,linewidth=0.5)
 
@@ -78,7 +78,7 @@ def get_cmap(cpal, bnds, cext='neither', cbad='w'):
         lvl=get_lvl(bnds)
         lvlmin=lvl[0] ; lvlmax=lvl[-1]
     else:
-        print ' Need definition of levels (min,max) at least.'
+        print(' Need definition of levels (min,max) at least.')
         sys.exit(42)
 
     nintlvl=len(lvl)-1
@@ -91,7 +91,7 @@ def get_cmap(cpal, bnds, cext='neither', cbad='w'):
     elif cext=='min':
         ntotlvl=len(lvl)   ; imin=1 ; imax=ntotlvl
     else:
-        print 'colorbar extension should be neither, both, max or min'
+        print('colorbar extension should be neither, both, max or min')
         sys.exit(42)
 
     cmap = plt.get_cmap(cpal,ntotlvl)
@@ -117,7 +117,7 @@ def add_legend(lh,ll,ncol=4,lframe=False,loc='bottom'):
    if loc=='bottom':
        lax=plt.axes([0.0, 0.0, 1.0, 0.05])
    else:
-       print 'legend location not yet supported, supported location are: bottom,'
+       print('legend location not yet supported, supported location are: bottom,')
    plt.legend(lh,ll,loc='center left',ncol=ncol,frameon=lframe,columnspacing=1)
    lax.set_axis_off()
 
@@ -135,7 +135,7 @@ def get_plt_bound(ax_lst,nplt):
         y1=np.max([y1,bc_lst[iplt].y1])
     return x0, y0, x1, y1
 
-def add_colorbar(plt,cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither',fontsize=14,cboffset=0.02,cbw=0.02):
+def add_colorbar(plt,cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboffset=0.02,cbw=0.02):
     cax  = plt.axes([x1+cboffset, y0, cbw, y1-y0])
     cbar = plt.colorbar(cb, cax=cax, format=cfmt, extend=cext)
     cbar.ax.tick_params(labelsize=fontsize)
@@ -145,7 +145,7 @@ def add_colorbar(plt,cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither
 
 def add_title(plt,ctitle,x0,y0,x1,y1):
     cax  = plt.axes([x0, y1, x1-x0, 1-y1])
-    cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=16)
+    cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=18)
     cax.axis('off')
 
 # ======================= TS diag ====================================
@@ -175,14 +175,14 @@ def plot_section_line(plt,cfile_lst):
 # ================================= NETCDF ===============================
 def get_name(regex,varlst):
     revar = re.compile(r'\b%s\b'%regex,re.I)
-    cvar  = filter(revar.match, varlst)
+    cvar  = list(filter(revar.match, varlst))
     if (len(cvar) > 1):
-        print regex+' name list is longer than 1 or 0; error'
-        print cvar
-        print cvar[0]+' is selected'
+        print(regex+' name list is longer than 1 or 0; error')
+        print(cvar)
+        print(cvar[0]+' is selected')
     if (len(cvar) == 0):
-        print 'no match between '+regex+' and :'
-        print varlst
+        print('no match between '+regex+' and :')
+        print(varlst)
         sys.exit(42)
     return cvar[0]
 
@@ -199,10 +199,10 @@ def get_latlon(cfile,offsety=None):
     lon2d=get_2d_data(cfile,clon,offsety=offsety)
     delta_lon=np.abs(np.diff(lon2d))
     j_lst,i_lst=np.nonzero(delta_lon>180)
-    print j_lst.shape, i_lst.shape
+    print(j_lst.shape, i_lst.shape)
     for idx in range(0,len(j_lst)): 
         lon2d[j_lst[idx], i_lst[idx]+1:] += 360
-    print 'end'
+    print('end')
     return lat2d,lon2d
 
 def get_variable_shape(ncid,ncvar):
@@ -220,8 +220,8 @@ def get_variable_shape(ncid,ncvar):
     elif (len(ncvar.shape)==4) and redimx.match(dimlst[3]) and redimy.match(dimlst[2]) and redimz.match(dimlst[1]) and redimt.match(dimlst[0]):
         cshape='XYZT'
     else:
-        print 'cshape undefined, error'
-        print dimlst
+        print('cshape undefined, error')
+        print(dimlst)
         sys.exit(42)
     return cshape
 
@@ -236,16 +236,16 @@ def get_dim(cfile,cdir):
     elif cdir=='t' :
         redim=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
     else:
-        print 'dimension direction unknown, need to be x, y, z or k'
+        print('dimension direction unknown, need to be x, y, z or k')
         sys.exit(42)
 
     cdim=filter(redim.match, ncid.dimensions.keys());
     if (len(cdim) > 1):
-        print regex+' name list is longer than 1; error'
-        print cdim
+        print(regex+' name list is longer than 1; error')
+        print(cdim)
         sys.exit(42)
     elif (len(cdim) == 0):
-        print cdir+' dim in '+cfile+' is 0.'
+        print(cdir+' dim in '+cfile+' is 0.')
         ndim=0
     else:
         cdim=cdim[0]
@@ -262,7 +262,7 @@ def get_dims(cfile):
 
 # get_2d_data
 def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
-    print ' reading '+cvar+' in '+cfile+' ...'
+    print(' reading '+cvar+' in '+cfile+' ...')
     if not offsety:
         nx,ny,nz,nt=get_dims(cfile)
         offsety=ny
@@ -273,36 +273,36 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     shape = get_variable_shape(ncid,var)
 
     if shape=='XY' :
-        print ' 2d variable XY'
+        print(' 2d variable XY')
         if (klvl > 0) :
-            print 'error klvl larger than 0 (klvl = '+str(klvl)+')'
+            print('error klvl larger than 0 (klvl = '+str(klvl)+')')
             sys.exit(42)
         if (ktime > 0) :
-            print 'error ktime larger than 0 (ktime = '+str(ktime)+')'
+            print('error ktime larger than 0 (ktime = '+str(ktime)+')')
             sys.exit(42)
         dat2d=var[0:offsety,:]
     elif shape=='XYT' :
-        print ' 3d variable XYT'
+        print(' 3d variable XYT')
         if (klvl > 0) :
-            print 'error klvl larger than 0 (klvl = '+str(klvl)+')'
+            print('error klvl larger than 0 (klvl = '+str(klvl)+')')
             sys.exit(42)
         if (ktime > 0) :
-            print 'error ktime larger than 0 (ktime = '+str(ktime)+')'
+            print('error ktime larger than 0 (ktime = '+str(ktime)+')')
             sys.exit(42)
         dat2d=var[ktime,0:offsety,:]
     elif shape=='XYZ' :
-        print ' 3d variable XYZ'
+        print(' 3d variable XYZ')
         if (ktime > 0) :
-            print 'error ktime larger than 0 (ktime = '+str(ktime)+')'
+            print('error ktime larger than 0 (ktime = '+str(ktime)+')')
             sys.exit(42)
         dat2d=var[klvl,0:offsety,:]
     elif len(var.shape)==4 :
-        print ' 4d variable XYZT'
+        print(' 4d variable XYZT')
         dat2d=var[ktime,klvl,0:offsety,:]
     else:
-        print cvar+' contains '+str(len(var.shape))+' dimensions'
-        print 'dimension names are '+var.dimensions
-        print ' shape unknown, exit '
+        print(cvar+' contains '+str(len(var.shape))+' dimensions')
+        print('dimension names are '+var.dimensions)
+        print(' shape unknown, exit ')
         sys.exit(42)
     ncid.close()
     return dat2d
@@ -319,6 +319,6 @@ def get_k_level(zlvl, cfile):
         if np.abs(zdep[jk]-z0) < err0:
             jk0=jk
             err0=np.abs(zdep[jk]-z0)
-    print 'the closest level to the requiered depth is: ', jk0
+    print('the closest level to the requiered depth is: ', jk0)
     return jk0, zdep[jk0]
 
