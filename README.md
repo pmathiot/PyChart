@@ -59,14 +59,16 @@ with environment.yml being the environement file described above.
 
 ## Usage
 
-usage: plot_maps.py [-h] [--dir data dir] --mapf file_name [file_name ...]
-                    --mapv var_name [var_name ...] [--mapreff file_ref]
-                    [--maprefv reference var_name]
-                    [--mapsf map data scale factor] [--mapjk vertical level]
-                    [--mapz depth of the map] [--cbn color map name] --cblvl
-                    color range [color range ...] [--cbu color map unit]
-                    [--cbfmt color bar fmt] [--cbext color bar extend]
-                    [--ft figure title] [--spfid runid [runid ...]]
+```
+usage: plot_maps.py [-h] [--dir data_dir] --mapf pcolor_file_names
+                    [pcolor_file_names ...] --mapv pcolor_var_names
+                    [pcolor_var_names ...] [--mapreff pcolor_ref_file_name]
+                    [--maprefv pcolor_ref_var_name]
+                    [--mapsf pcolor_scale_factor] [--mapjk pcolor_jk_depth]
+                    [--mapz pcolor_z_depth] [--cbn colormap_name] --cblvl
+                    colorbar_range [colorbar_range ...] [--cbu colorbar_unit]
+                    [--cbfmt colorbar_fmt] [--cbext colorbar_extend]
+                    [--ft figure_title] [--spfid runid [runid ...]]
                     [--sprid refid]
                     [--mask mask file name [mask file name ...]]
                     [--mesh mesh file name [mesh file name ...]]
@@ -81,3 +83,63 @@ usage: plot_maps.py [-h] [--dir data dir] --mapf file_name [file_name ...]
                     [--bathyv bathy var]
                     [--bathylvl contour line level [contour line level ...]]
                     [--secf section line file list  [section line file list  ...]]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --dir data_dir        data dir
+  --mapf pcolor_file_names [pcolor_file_names ...]
+                        names of input files
+  --mapv pcolor_var_names [pcolor_var_names ...]
+                        variable list
+  --mapreff pcolor_ref_file_name
+                        names of ref files
+  --maprefv pcolor_ref_var_name
+                        reference variable name
+  --mapsf pcolor_scale_factor
+                        map data scale factor
+  --mapjk pcolor_jk_depth
+                        level in fortran convention
+  --mapz pcolor_z_depth
+                        depth of the map
+  --cbn colormap_name   color map name
+  --cblvl colorbar_range [colorbar_range ...]
+                        color range
+  --cbu colorbar_unit   colorbar unit
+  --cbfmt colorbar_fmt  colorbar format
+  --cbext colorbar_extend
+                        colorbar extend
+  --ft figure_title     title of the whole figure
+  --spfid runid [runid ...]
+                        runids (title + mesh name)
+  --sprid refid         refids (title + mesh name)
+  --mask mask file name [mask file name ...]
+                        mask file name
+  --mesh mesh file name [mesh file name ...]
+                        mesh file name
+  --sp subplot disposition
+                        subplot disposition (ixj)
+  -o output name        output name
+  -p projection         projection
+  --cntf contour file [contour file ...]
+                        contour file list
+  --cntv contour var    contour variable
+  --cntreff contour ref file
+                        contour reference file
+  --cntrefv contour ref var 
+                        contour reference variable
+  --cntsf contour data scale factor
+                        contour data scale factor
+  --cntjk contour jk level
+                        contour jk level
+  --cntz contour depth in m
+                        contour depth in m
+  --cntlvl contour line level [contour line level ...]
+                        contour line level
+  --bathyf bathy file [bathy file ...]
+                        bathy file
+  --bathyv bathy var    contour variable
+  --bathylvl contour line level [contour line level ...]
+                        contour line level
+  --secf section line file list  [section line file list  ...]
+                        section file list describing section to plot
+```
