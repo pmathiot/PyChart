@@ -127,109 +127,74 @@ def def_projection(proj_name):
         proj=ccrs.Orthographic(central_longitude=-60.0, central_latitude=45.0)
         joffset=-1
         XY_lim=[-180, 180, -90, -60]
-        global_lim=True
-        latlon_lim=False
     elif proj_name=='south_stereo' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
         XY_lim=[-180, 180, -90, -60]
         joffset=-2
-        global_lim='F'
-        latlon_lim='T'
     elif proj_name=='south_ocean' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
-        XY_lim=[-180, 180, -90, -45]
+        XY_lim=[(-180, 180, -90, -45),ccrs.PlateCarree()]
         joffset=-2
-        global_lim='F'
-        latlon_lim='T'
     elif proj_name=='ant' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
         XY_lim=[-180, 180, -90, -65]
         joffset=-2
-        global_lim='F'
-        latlon_lim='T'
     elif proj_name=='arctic' : 
         proj=ccrs.Stereographic(central_latitude=90.0, central_longitude=0.0)
         XY_lim=[-180, 180, 60, 90]
         joffset=-2
-        global_lim='F'
-        latlon_lim='T'
     elif proj_name=='global' :
         proj=ccrs.PlateCarree()
-        XY_lim=[0, 360, -90, 90]
-        global_lim=True
-        latlon_lim=False
+        XY_lim=['global']
         joffset=-1
     elif proj_name=='natl'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
         joffset=-2
-        global_lim=False
-        latlon_lim=False
     elif proj_name=='greenland'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
         joffset=-1
-        global_lim=False
-        latlon_lim=False
     elif proj_name=='ovf'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
         joffset=-2
-        global_lim=False
-        latlon_lim=False
     elif proj_name=='ovf_larger'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-2.5e5,2.45e6,0.9e6,3.6e6]
         joffset=-2
-        global_lim=False
-        latlon_lim=False
     elif proj_name=='irminger'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-2.164e5,1.395e6,1.635e6,3.265e6]
         joffset=-2
-        global_lim=False
-        latlon_lim=False
     elif proj_name=='japan'         :
         proj=ccrs.LambertConformal(150, 30,cutoff=10)
         XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
         joffset=-1
-        global_lim='F'
-        latlon_lim='F'
     elif proj_name=='global_robinson':
         proj=ccrs.Robinson()
-        XY_lim=[0, 360, -90, 90]
-        joffset=-1
-        global_lim='T'
-        latlon_lim='F'
+        XY_lim=['global']
     elif proj_name=='global_mercator':
         proj=ccrs.Mercator(central_longitude=-90.0)
-        XY_lim=[0, 360, -90, 90]
+        XY_lim=['global']
         joffset=-1
-        global_lim=True
-        latlon_lim=False
     elif proj_name=='feroe'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
         joffset=-1
-        global_lim='F'
-        latlon_lim='F'
     elif proj_name=='gulf_stream'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-        XY_lim=[-4.250e6,1.115e5,-1.546e6,2.8155e6]
+        XY_lim=[(-4.250e6,1.115e5,-1.546e6,2.8155e6), proj]
         joffset=-1
-        global_lim='F'
-        latlon_lim='F'
     elif proj_name=='ross':
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0)
-        XY_lim=[-6.67e5,8.33e5,1.05e6,2.47e6]
+        XY_lim=[(-6.67e5,8.33e5,1.05e6,2.47e6), proj]
         joffset=-2
-        global_lim='F'
-        latlon_lim='F'
     else:
         print('projection '+proj_name+' unknown')
         print('should be ross, gulf_stream, feroe, global_mercator, global_robinson, japan, ovf, greenland, natl, global, south_stereo, ant')
         sys.exit(42)
-    return proj, XY_lim, joffset, global_lim, latlon_lim
+    return proj, XY_lim, joffset
 # =======================================================================================================================================================
 
 def main():
@@ -249,7 +214,7 @@ def main():
         ctitle_lst = args.spfid[:]
         
     # get projection and extend
-    proj, XY_lim, joffset, lglob_lim, llatlon_lim = def_projection(args.p[0])
+    proj, XY_lim, joffset = def_projection(args.p[0])
     
     # deals with ref file
     creft=''
@@ -354,12 +319,10 @@ def main():
         ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj)
     
         # put proj, extend, grid ...
-        if llatlon_lim:
-            ax[ifile].set_extent(XY_lim, ccrs.PlateCarree())
-        elif lglob_lim:
+        if XY_lim[0] == 'global':
              ax[ifile].set_global()
         else:
-            ax[ifile].set_xlim(XY_lim[0:2]); ax[ifile].set_ylim(XY_lim[2:4]) 
+            ax[ifile].set_extent(XY_lim[0], XY_lim[1])
     
         add_land_features(ax[ifile],['isf','lakes','land'])
         ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')
