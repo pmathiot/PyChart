@@ -120,92 +120,72 @@ def get_argument():
     parser.add_argument("--bathyv"  , metavar='bathy var '               , help="contour variable"               , type=str  , nargs=1  , required=False)
     parser.add_argument("--bathylvl", metavar='contour line level'       , help="contour line level"             , type=float, nargs="+", required=False)
     parser.add_argument("--secf"    , metavar='section line file list '  , help="section file list describing section to plot", type=str, nargs="+", required=False)
+    parser.add_argument("--joffset" , metavar='offset on j'              , help="do not read the top j lines, it could be needed for some grid (ORCA like for example) and some projection", type=int  , nargs=1  , default=[0],required=False)
     return parser.parse_args()
 
 def def_projection(proj_name):
     if proj_name=='ortho_natl' :
         proj=ccrs.Orthographic(central_longitude=-60.0, central_latitude=45.0)
-        joffset=-1
         XY_lim=[-180, 180, -90, -60]
     elif proj_name=='south_stereo' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
         XY_lim=[-180, 180, -90, -60]
-        joffset=-2
     elif proj_name=='south_ocean' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
         XY_lim=[(-180, 180, -90, -45),ccrs.PlateCarree()]
-        joffset=-2
     elif proj_name=='ant' : 
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)
         XY_lim=[-180, 180, -90, -65]
-        joffset=-2
     elif proj_name=='arctic' : 
         proj=ccrs.Stereographic(central_latitude=90.0, central_longitude=0.0)
         XY_lim=[-180, 180, 60, 90]
-        joffset=-2
     elif proj_name=='global' :
         proj=ccrs.PlateCarree()
         XY_lim=['global']
-        joffset=-1
     elif proj_name=='natl'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
-        joffset=-2
     elif proj_name=='greenland'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
-        joffset=-1
     elif proj_name=='ovf'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
-        joffset=-2
     elif proj_name=='ovf_larger'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-2.5e5,2.45e6,0.9e6,3.6e6]
-        joffset=-2
     elif proj_name=='irminger'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[-2.164e5,1.395e6,1.635e6,3.265e6]
-        joffset=-2
     elif proj_name=='japan'         :
         proj=ccrs.LambertConformal(150, 30,cutoff=10)
         XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
-        joffset=-1
     elif proj_name=='global_robinson':
         proj=ccrs.Robinson()
         XY_lim=['global']
     elif proj_name=='global_mercator':
         proj=ccrs.Mercator(central_longitude=-90.0)
         XY_lim=['global']
-        joffset=-1
     elif proj_name=='feroe'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
-        joffset=-1
     elif proj_name=='gulf_stream'         :
         proj=ccrs.LambertConformal(-40, 45,cutoff=20)
         XY_lim=[(-4.250e6,1.115e5,-1.546e6,2.8155e6), proj]
-        joffset=-1
     elif proj_name=='ross':
         proj=ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0)
         XY_lim=[(-6.67e5,8.33e5,1.05e6,2.47e6), proj]
-        joffset=-2
     else:
         print('projection '+proj_name+' unknown')
         print('should be ross, gulf_stream, feroe, global_mercator, global_robinson, japan, ovf, greenland, natl, global, south_stereo, ant')
         sys.exit(42)
-    return proj, XY_lim, joffset
+    return proj, XY_lim
 # =======================================================================================================================================================
 
 def main():
 
     # get argument list
     args=get_argument()
-    
-    # get file and title list and sanity check
-    if args.mapf:
-        cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
-        mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
     
     sanity_check(args)
    
@@ -214,33 +194,40 @@ def main():
         ctitle_lst = args.spfid[:]
         
     # get projection and extend
-    proj, XY_lim, joffset = def_projection(args.p[0])
+    proj, XY_lim = def_projection(args.p[0])
     
     # deals with ref file
     creft=''
     mapref2d=0.0
-    if args.mapreff:
-        # def file list
-        if args.maprefv:
-            cmapreffile,cmaprefvar=get_file_and_varname(args.dir[0], args.mapreff[:],args.maprefv[:])
-        else:
-            cmapreffile = args.mapreff[:]
-            cmaprefvar  = cmaprunvar[:]
-        nmapreffile = len(cmapreffile)
+    joffset=args.joffset[0]
+
+    # get file and title list and sanity check
+    if args.mapf:
+        cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
+        mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
     
-        if args.sprid:
-            creft=' - '+args.sprid[0]
-        print(nmapreffile,' ref',cmapreffile[0],args.mapreff )
-        if nmapreffile==1 :
-            mapref2d=get_2d_data(cmapreffile[0],cmaprefvar[0],klvl=mapjk,offsety=joffset)
-        else:
-            print('more than 1 ref file, not yet implememnnted')
-            sys.exit(42)
+        if args.mapreff:
+            # def file list
+            if len(args.mapreff)==1 :
+                mapref2d=get_2d_data(args.mapreff[0],args.maprefv[0],klvl=mapjk,offsety=joffset)
+            else:
+                print('more than 1 ref file, not yet implememnnted')
+                sys.exit(42)
     
     if args.cntf:
-        # get file and title list and sanity check
+        # get file
         ccntrunfile,ccntrunvar=get_file_and_varname(args.dir[0], args.cntf[:],args.cntv[:])
         cntjk=get_jk(args.cntjk,args.cntz,ccntrunfile[0])
+
+        if args.cntreff:
+            if len(args.cntreff)==1 :
+                cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],klvl=cntjk,offsety=joffset)
+            else:
+                print('more than 1 cnt ref file, not yet implememnnted')
+                sys.exit(42)
+  
+    # define contour lvl
+    if args.cntf: 
         cntlvl=get_lvl(args.cntlvl)
         cntclr=[None]*len(cntlvl)
         for ii, val in enumerate(cntlvl):
@@ -249,13 +236,11 @@ def main():
             if val >=0:
                 cntclr[ii]='k'
     
-        if args.cntreff:
-            cntref2d=get_2d_data(args.cntreff[0],args.cntrefv[0],klvl=cntjk,offsety=joffset)
-        else:
-            cntref2dm = 0.0
-    
-    
-    
+    # get subtitle extention 
+    if args.mapreff or args.cntf:    
+        if args.sprid:
+            creft=' - '+args.sprid[0]
+
     # get whole figure title
     fig_title=cmaprunvar[0]
     if args.ft:
@@ -286,34 +271,22 @@ def main():
     
     # define figure dimension
     plt.figure(figsize=np.array([297,297*njsplt/nisplt]) / 25.4)
-    #lt.figure(figsize=np.array([210,210*njsplt/nisplt]) / 25.4)
     
     for ifile in range(0,nplt):
-    
-        # load input file
-        mapvar2d=get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
 
-        # initialisation msk
+        # deals with mesh mask 
         msk = 1.0
         if args.mask:
-        # deals with mesh mask 
             cmsk=args.mask[ifile]
-            if os.path.isfile(cmsk):
-               print('open '+cmsk)
-               msk = get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
-               msk = ma.masked_where(msk==0.0,msk)
+            print('open '+cmsk)
+            msk = get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
+            msk = ma.masked_where(msk==0.0,msk)
     
         if args.mesh:
             cmeshf=get_var_lst(args.mesh,args.mapf)
             lat2d,lon2d=get_latlon(cmeshf[ifile],joffset) 
         else:
             lat2d,lon2d=get_latlon(cmaprunfile[ifile],joffset) 
-    
-        mapvar2d = ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
-    
-        # mask data
-        if args.mapreff:
-            mapref2d = ma.masked_array(mapref2d, mapvar2d.mask)
     
         # define subplot
         ax[ifile] = plt.subplot(njsplt, nisplt, ifile+1, projection=proj)
@@ -330,21 +303,31 @@ def main():
     
         # make plot
         ncrs=1
+       
+        # add map if ask
         if args.mapf:
-        # could be an option to not plot the map
+            mapvar2d  = get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
+            mapvar2dm = ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
+            if args.mapreff:
+               mapref2dm = ma.masked_array(mapref2d, mapvar2d.mask)
+            else:
+               mapref2dm = 0.0
+
             print('plot pcolormesh ...')
-            maptoplot2d=(mapvar2d-mapref2d)*map_sf
+            maptoplot2d=(mapvar2dm-mapref2dm)*map_sf
             pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs],cmap=cmap,norm=norm,vmin=rmin,vmax=rmax,transform=ccrs.PlateCarree(),rasterized=True)
     
         # add contour if ask
         if args.cntf:
-            var2d=get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
-            var2dm = ma.masked_where(var2d==0.0,var2d)
+            cntvar2d  = get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
+            cntvar2dm = ma.masked_where(cntvar2d==0.0,cntvar2d)
             if args.cntreff:
                 cntref2dm = ma.masked_where(msk*cntref2d==0.0,cntref2d)
+            else:
+                cntref2dm = 0.0
     
             print('plot contour ...')
-            cnttoplot=(var2dm-cntref2dm)*cnt_sf
+            cnttoplot=(cntvar2dm-cntref2dm)*cnt_sf
             ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot[::ncrs,::ncrs],levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
             
         # add bathy line if ask
@@ -353,6 +336,7 @@ def main():
             cbathyv=get_var_lst(args.bathyv,args.mapf)
             bathy2d=get_2d_data(cbathyf[ifile],cbathyv[ifile],offsety=joffset)
             bathy2dm = ma.masked_where(bathy2d==0.0,bathy2d)
+
             print('plot bathymetry ...')
             ax[ifile].contour(lon2d,lat2d,bathy2dm,levels=args.bathylvl[:],transform=ccrs.PlateCarree(),colors='0.5',linewidths=0.5)
     

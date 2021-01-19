@@ -239,7 +239,7 @@ def get_dim(cfile,cdir):
         print('dimension direction unknown, need to be x, y, z or k')
         sys.exit(42)
 
-    cdim=filter(redim.match, ncid.dimensions.keys());
+    cdim=list(filter(redim.match, ncid.dimensions.keys()));
     if (len(cdim) > 1):
         print(regex+' name list is longer than 1; error')
         print(cdim)
