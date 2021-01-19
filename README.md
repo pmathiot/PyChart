@@ -9,7 +9,7 @@ Below you can find an exemple of the kind of output from PyChart:
 The command line to produce this plot is:
 
 ```
-python ~/GIT/PyChart/plot_maps.py \
+python ~/GIT/PyChart/pychart.py \
    --ft 'BSF (OPM006)' \
    --spfid '1979-1988'                            '1989-1998'                           '1999-2008'                            '2009-2018'                         \
    --mapf eORCA025.L121-OPM006_10y_y1979_psi.nc eORCA025.L121-OPM006_10y_y1989_psi.nc eORCA025.L121-OPM006_10y_y1999_psi.nc eORCA025.L121-OPM006_10y_y2009_psi.nc  \
