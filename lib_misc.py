@@ -1,4 +1,5 @@
 import re
+import subprocess
 import cartopy.crs as ccrs
 import netCDF4 as nc
 import sys
@@ -10,10 +11,14 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 # ============================ output argument list in txt file ================
-def output_argument_lst(cfile, arglst):
-    fid = open(cfile,"w")
-    fid.write(' python '+' '.join(arglst))
+def save_output(cfile, fig, argslst):
+    # save argument list
+    fid = open(cfile+'.txt',"w")
+    fid.write(' python '+subprocess.list2cmdline(sys.argv[0:])+'\n')
     fid.close()
+
+    # save figure
+    fig.savefig(cfile+'.png', format='png', dpi=150)
 
 # ============================ file parser =====================================
 def parse_dbfile(cfile,key_lst):
@@ -38,7 +43,6 @@ def add_land_features(ax,cfeature_lst):
 # get isf groiunding line, ice shelf front and coastline
     for ifeat,cfeat in enumerate(cfeature_lst):
         if cfeat=='isf':
-            #feature = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m',facecolor='0.75',edgecolor='k') # global plot
             feature = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m',facecolor='none',edgecolor='k')
         elif cfeat=='lakes':
             feature = cartopy.feature.NaturalEarthFeature('physical', 'lakes'                      , '50m',facecolor='none',edgecolor='k')
@@ -124,6 +128,29 @@ def add_colorbar(cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither',fo
     cbar = plt.colorbar(cb, cax=cax, format=cfmt)
     cbar.ax.tick_params(labelsize=fontsize)
     cbar.ax.set_title(cunit)
+
+def get_subplt_title(args,nplt):
+    # supplot title prefix
+    csubplt_title=['']
+    if nplt > 1:
+        csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
+    
+    # get title list for each subplot 
+    if args.spfid:
+        crun_title = args.spfid[:]
+   
+    # get subtitle extention 
+    if (args.mapreff or args.cntreff) and args.sprid:
+        cref_title=[' - '+cchar for i,cchar in enumerate(args.sprid)]
+    else:
+        cref_title=['']*nplt
+
+    # build final title
+    ctitle=[None]*nplt
+    for iplt in range(nplt):
+        ctitle[iplt]=csubplt_title[iplt]+crun_title[iplt]+cref_title[iplt]
+
+    return ctitle
 
 def add_title(ctitle,x0,y0,x1,y1):
     cax  = plt.axes([x0, y1, x1-x0, 1-y1])

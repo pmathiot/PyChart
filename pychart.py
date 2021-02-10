@@ -1,4 +1,4 @@
-#!/usr/local/sci/bin/python2.7
+#!/usr/bin/python
 
 import matplotlib
 #matplotlib.use('GTKAgg') 
@@ -18,13 +18,6 @@ from cartopy.feature import LAND
 sys.path.insert(0,'/home/h05/pmathiot/PYTHON/PYCHART_GIT/')
 from lib_misc import *
 #matplotlib.use('GTKAgg') 
-
-def def_output_name(arg_output,cext,cvar,jk,cproj):
-    if arg_output:
-        coutput=arg_output
-    else:
-        coutput=cext+cvar+'_lev'+str(jk)+'_'+cproj
-    return coutput
 
 def sanity_check(args):
     # sanity check
@@ -107,7 +100,7 @@ def get_argument():
     parser.add_argument("--mesh"    , metavar='mesh file name'           , help="mesh file name"                 , type=str  , nargs="+", required=False)
     parser.add_argument("--sp"      , metavar='subplot disposition'      , help="subplot disposition (ixj)"      , type=str  , nargs=1  , default=['1x1']   , required=False)
     parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="0,0 : top left plot, 0,: : top line", type=str  , nargs="+",                 required=False)
-    parser.add_argument("-o"        , metavar='output name'              , help="output name"                    , type=str  , nargs=1  , default=['output'], required=False)
+    parser.add_argument("-o"        , metavar='output name'              , help="output name"                    , type=str  , nargs=1  , default=['figure'], required=False)
     parser.add_argument("-p"        , metavar='projection'               , help="projection"                     , type=str  , nargs=1  , default=['global'], required=False)
     parser.add_argument("--crs"     , metavar='sampling value'           , help="sampling value (every ncrs pts)", type=int  , nargs=1  , default=[1],        required=False)
     parser.add_argument("--cntf"    , metavar='contour file'             , help="contour file list"              , type=str  , nargs="+", required=False)
@@ -190,10 +183,6 @@ def main():
     args=get_argument()
     
     sanity_check(args)
-   
-    # get title list for each subplot 
-    if args.spfid:
-        ctitle_lst = args.spfid[:]
         
     # get projection and extend
     proj, XY_lim = def_projection(args.p[0])
@@ -232,17 +221,6 @@ def main():
             if val >=0:
                 cntclr[ii]='k'
     
-    # get subtitle extention 
-    if (args.mapreff or args.cntf) and args.sprid:
-        creft=[' - '+cchar for i,cchar in enumerate(args.sprid)]
-    else:
-        creft=['']*len(cmaprunfile)
-
-    # get whole figure title
-    fig_title=cmaprunvar[0]
-    if args.ft:
-        fig_title=args.ft[0]
-    
     # get map colorbar
     cextend=args.cbext[0]
     cmap, norm, maplvl = get_cmap(args.cbn[0],args.cblvl,cext=cextend)
@@ -257,12 +235,10 @@ def main():
     elif args.cntf:
         nplt=len(ccntrunfile)
     nisplt,njsplt = get_subplot(args.sp[0],nplt)
-    
-    # supplot title prefix
-    csubplt_title=['']
-    if nplt > 1:
-        csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
-    
+  
+    # title list
+    csptitle = get_subplt_title(args,nplt)
+
     # initialisation
     ax = [None] * nplt
     lpltloc=[None]*nplt
@@ -307,7 +283,7 @@ def main():
     
         add_land_features(ax[ifile],['isf','lakes','land'])
         ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')
-        ax[ifile].set_title(csubplt_title[ifile]+ctitle_lst[ifile]+creft[ifile],fontsize=18)
+        ax[ifile].set_title(csptitle[ifile],fontsize=18)
     
         # make plot
         ncrs=args.crs[0]
@@ -367,19 +343,10 @@ def main():
         add_colorbar(pcol,xl,yb,xr,yt,lvl=maplvl[:],cunit=args.cbu[0],cfmt=args.cbfmt[0],cext=cextend)
     
     # put whole figure title
-    add_title(fig_title,xl,yb,xr,yt)
-    
-    # get figure name
-    if args.o:
-        coutput_name=args.o[0]
-    else:
-        coutput_name=def_output_name(args,outxt,cvar,mapjk,args.p[0])
-    
+    add_title(args.ft[0],xl,yb,xr,yt)
+
     # argument lst output
-    output_argument_lst(coutput_name+'.txt',sys.argv)
-    
-    # save figure
-    fig.savefig(coutput_name+'.png', format='png', dpi=150)
+    save_output(args.o[0],fig,sys.argv)
     
     # show figure
     plt.show()
