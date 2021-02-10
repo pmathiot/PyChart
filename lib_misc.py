@@ -12,7 +12,7 @@ import matplotlib.colors as colors
 # ============================ output argument list in txt file ================
 def output_argument_lst(cfile, arglst):
     fid = open(cfile,"w")
-    fid.write(' python2.7 '+' '.join(arglst))
+    fid.write(' python '+' '.join(arglst))
     fid.close()
 
 # ============================ file parser =====================================
@@ -68,7 +68,7 @@ def get_lvl(bnds):
     elif len(bnds)==2:
         lvlmin = bnds[0]
         lvlmax = bnds[1]
-        lvl=np.linspace(lvlmin, lvlmax, num=20)
+        lvl=np.linspace(lvlmin, lvlmax, num=10)
     else:
         lvl=bnds[:]
     return lvl
@@ -76,34 +76,18 @@ def get_lvl(bnds):
 def get_cmap(cpal, bnds, cext='neither', cbad='w'):
     if bnds:
         lvl=get_lvl(bnds)
-        lvlmin=lvl[0] ; lvlmax=lvl[-1]
     else:
         print(' Need definition of levels (min,max) at least.')
         sys.exit(42)
 
-    nintlvl=len(lvl)-1
-    if cext=='neither':
-        ntotlvl=len(lvl)-1 ; imin=0 ; imax=ntotlvl
-    elif cext=='both':
-        ntotlvl=len(lvl)+1 ; imin=1 ; imax=ntotlvl-1
-    elif cext=='max':
-        ntotlvl=len(lvl)   ; imin=0 ; imax=ntotlvl-1
-    elif cext=='min':
-        ntotlvl=len(lvl)   ; imin=1 ; imax=ntotlvl
-    else:
+    if cext not in ['neither','both','max','min']:
         print('colorbar extension should be neither, both, max or min')
         sys.exit(42)
 
-    cmap = plt.get_cmap(cpal,ntotlvl)
-    cmap = cmap(np.arange(ntotlvl)) ; cunder=cmap[0]; cover=cmap[-1]
-    cmap = cmap[imin:imax]
-    cmap=colors.LinearSegmentedColormap.from_list("cmap", cmap, nintlvl)
-    #cmap.set_bad(cbad, 0.0) # needed for global plot !!!!!
-    cmap.set_bad(cbad, 1.0)
-    cmap.set_under(cunder)
-    cmap.set_over(cover)
-    norm = colors.BoundaryNorm(boundaries=lvl, ncolors=nintlvl)
-    return cmap,norm,lvl,lvlmin,lvlmax
+    cmap = plt.get_cmap(cpal)
+    norm = colors.BoundaryNorm(lvl, cmap.N, extend=cext)
+
+    return cmap,norm,lvl
 
 # ============================ LEGEND ==================================
 def get_corner(ax):
@@ -135,17 +119,15 @@ def get_plt_bound(ax_lst,nplt):
         y1=np.max([y1,bc_lst[iplt].y1])
     return x0, y0, x1, y1
 
-def add_colorbar(plt,cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboffset=0.02,cbw=0.02):
+def add_colorbar(cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboffset=0.02,cbw=0.02):
     cax  = plt.axes([x1+cboffset, y0, cbw, y1-y0])
-    cbar = plt.colorbar(cb, cax=cax, format=cfmt, extend=cext)
+    cbar = plt.colorbar(cb, cax=cax, format=cfmt)
     cbar.ax.tick_params(labelsize=fontsize)
     cbar.ax.set_title(cunit)
-    if lvl is not None:
-        cbar.set_ticks(lvl)
 
-def add_title(plt,ctitle,x0,y0,x1,y1):
+def add_title(ctitle,x0,y0,x1,y1):
     cax  = plt.axes([x0, y1, x1-x0, 1-y1])
-    cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=18)
+    cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=20)
     cax.axis('off')
 
 # ======================= TS diag ====================================
@@ -167,10 +149,10 @@ def plot_s0_line(tmin,smin,tmax,smax,siglvl=[27.88, 27.8, 27.68, 27.55]):
     plt.clabel(CS, fontsize=12, inline=1, fmt='%4.2f', inline_spacing=1, use_clabeltext=1) # Label every second level
 
 # ================================ extra information on plot =============
-def plot_section_line(plt,cfile_lst):
+def plot_section_line(fig,cfile_lst):
     for fsection in cfile_lst:
         lat,lon=get_latlon(fsection)
-        plt.plot(lon.squeeze(),lat.squeeze(),'k-',linewidth=2.0,transform=ccrs.PlateCarree())
+        fig.plot(lon.squeeze(),lat.squeeze(),'k-',linewidth=2.0,transform=ccrs.PlateCarree())
 
 # ================================= NETCDF ===============================
 def get_name(regex,varlst):
@@ -198,18 +180,15 @@ def get_latlon(cfile,offsety=None):
     lat2d=get_2d_data(cfile,clat,offsety=offsety)
     lon2d=get_2d_data(cfile,clon,offsety=offsety)
     delta_lon=np.abs(np.diff(lon2d))
-    j_lst,i_lst=np.nonzero(delta_lon>180)
-    print(j_lst.shape, i_lst.shape)
-    for idx in range(0,len(j_lst)): 
-        lon2d[j_lst[idx], i_lst[idx]+1:] += 360
-    print('end')
+    for i, start in enumerate(np.argmax(np.abs(np.diff(delta_lon)) > 180, axis=1)):
+        lon2d[i, start+1:] += 360
     return lat2d,lon2d
 
 def get_variable_shape(ncid,ncvar):
     redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
     redimz=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
-    redimy=re.compile(r"\b(y|y_grid_.+|latitude|lat|nj)\b", re.I)
-    redimx=re.compile(r"\b(x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
+    redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
+    redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
     dimlst = ncvar.dimensions
     if (len(ncvar.shape)==2) and redimx.match(dimlst[1]) and redimy.match(dimlst[0]):
         cshape='XY'
