@@ -91,7 +91,7 @@ def get_argument():
     parser.add_argument("--mapf"    , metavar='pcolor_file_names'        , help="names of input files"           , type=str  , nargs="+", required=True )
     parser.add_argument("--mapv"    , metavar='pcolor_var_names'         , help="variable list"                  , type=str  , nargs="+", required=True )
     parser.add_argument("--mapreff" , metavar='pcolor_ref_file_name'     , help="names of ref   files"           , type=str  , nargs="+", required=False)
-    parser.add_argument("--maprefv" , metavar='pcolor_ref_var_name'      , help="reference variable name"        , type=str  , nargs=1  , required=False)
+    parser.add_argument("--maprefv" , metavar='pcolor_ref_var_name'      , help="reference variable name"        , type=str  , nargs="+", required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , type=float, nargs=1  , default=[1.0]     , required=False)
     parser.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , type=int  , nargs=1  , required=False)
     parser.add_argument("--mapz"    , metavar='pcolor_z_depth'           , help="depth of the map"               , type=float, nargs=1  , required=False)
@@ -109,6 +109,7 @@ def get_argument():
     parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="0,0 : top left plot, 0,: : top line", type=str  , nargs="+",                 required=False)
     parser.add_argument("-o"        , metavar='output name'              , help="output name"                    , type=str  , nargs=1  , default=['output'], required=False)
     parser.add_argument("-p"        , metavar='projection'               , help="projection"                     , type=str  , nargs=1  , default=['global'], required=False)
+    parser.add_argument("--crs"     , metavar='sampling value'           , help="sampling value (every ncrs pts)", type=int  , nargs=1  , default=[1],        required=False)
     parser.add_argument("--cntf"    , metavar='contour file'             , help="contour file list"              , type=str  , nargs="+", required=False)
     parser.add_argument("--cntv"    , metavar='contour var '             , help="contour variable"               , type=str  , nargs=1  , required=False)
     parser.add_argument("--cntreff" , metavar='contour ref file'         , help="contour reference file"         , type=str  , nargs=1  , required=False)
@@ -309,7 +310,7 @@ def main():
         ax[ifile].set_title(csubplt_title[ifile]+ctitle_lst[ifile]+creft[ifile],fontsize=18)
     
         # make plot
-        ncrs=4
+        ncrs=args.crs[0]
        
         # add map if ask
         if args.mapf:
@@ -347,7 +348,7 @@ def main():
             bathy2dm = ma.masked_where(bathy2d==0.0,bathy2d)
 
             print('plot bathymetry ...')
-            ax[ifile].contour(lon2d,lat2d,bathy2dm,levels=args.bathylvl[:],transform=ccrs.PlateCarree(),colors='0.5',linewidths=0.5)
+            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],bathy2dm[::ncrs,::ncrs],levels=args.bathylvl[:],transform=ccrs.PlateCarree(),colors='0.5',linewidths=0.5)
 
         # add section line if ask
         if args.secf:
@@ -356,7 +357,7 @@ def main():
     
     # remove extra white space
     hpx=0.06+0.035*njsplt
-    fig.subplots_adjust(left=0.01,right=0.88, bottom=0.01, top=0.89, wspace=0.1, hspace=hpx)
+    fig.subplots_adjust(left=0.01,right=0.88, bottom=0.02, top=0.89, wspace=0.1, hspace=hpx)
     
     # get_figure_corner position
     xl, yb, xr, yt = get_plt_bound(ax, nplt) # left, bottom, right, top

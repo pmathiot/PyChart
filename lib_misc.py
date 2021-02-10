@@ -180,7 +180,7 @@ def get_latlon(cfile,offsety=None):
     lat2d=get_2d_data(cfile,clat,offsety=offsety)
     lon2d=get_2d_data(cfile,clon,offsety=offsety)
     delta_lon=np.abs(np.diff(lon2d))
-    for i, start in enumerate(np.argmax(np.abs(np.diff(delta_lon)) > 180, axis=1)):
+    for i, start in enumerate(np.argmax(delta_lon > 180, axis=1)):
         lon2d[i, start+1:] += 360
     return lat2d,lon2d
 
@@ -190,7 +190,11 @@ def get_variable_shape(ncid,ncvar):
     redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
     redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
     dimlst = ncvar.dimensions
-    if (len(ncvar.shape)==2) and redimx.match(dimlst[1]) and redimy.match(dimlst[0]):
+    if (len(ncvar.shape)==1) and redimx.match(dimlst[0]):
+        cshape='X'
+    elif (len(ncvar.shape)==1) and redimy.match(dimlst[0]):
+        cshape='Y'
+    elif (len(ncvar.shape)==2) and redimx.match(dimlst[1]) and redimy.match(dimlst[0]):
         cshape='XY'
     elif (len(ncvar.shape)==3) and redimx.match(dimlst[2]) and redimy.match(dimlst[1]) and redimt.match(dimlst[0]):
         cshape='XYT'
@@ -251,7 +255,15 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     var    = ncid.variables[clvar]
     shape = get_variable_shape(ncid,var)
 
-    if shape=='XY' :
+    if shape=='X' :
+        print(' 1d variable X => extend it 2d')
+        tmp=np.zeros(shape=(ny,))
+        dat2d,_=np.meshgrid(var[:],tmp)
+    elif shape=='Y' :
+        print(' 1d variable Y => extend it 2d')
+        tmp=np.zeros(shape=(nx,))
+        _,dat2d=np.meshgrid(tmp,var[:])
+    elif shape=='XY' :
         print(' 2d variable XY')
         if (klvl > 0) :
             print('error klvl larger than 0 (klvl = '+str(klvl)+')')
@@ -280,10 +292,11 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
         dat2d=var[ktime,klvl,0:offsety,:]
     else:
         print(cvar+' contains '+str(len(var.shape))+' dimensions')
-        print('dimension names are '+var.dimensions)
-        print(' shape unknown, exit ')
+        print('dimension names are ',var.dimensions)
+        print(' shape '+shape+' is unknown, exit ')
         sys.exit(42)
     ncid.close()
+
     return dat2d
 
 def get_k_level(zlvl, cfile):
