@@ -1,17 +1,17 @@
 import re
-import subprocess
-import cartopy.crs as ccrs
-import netCDF4 as nc
-import sys
-sys.path.insert(0, '/home/h05/pmathiot/PYTHON/MISC/seawater/')
 import seawater
 import cartopy
+import subprocess
+import sys
+
+import cartopy.crs as ccrs
+import netCDF4 as nc
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 # ============================ output argument list in txt file ================
-def save_output(cfile, fig, argslst):
+def save_output(cfile, fig):
     # save argument list
     fid = open(cfile+'.txt',"w")
     fid.write(' python '+subprocess.list2cmdline(sys.argv[0:])+'\n')
@@ -25,41 +25,32 @@ def parse_dbfile(cfile,key_lst):
     print('open file '+cfile)
     val_lst=[None]*len(key_lst)
     with open(cfile) as fid:
-       for ikey,ckey in enumerate(key_lst):
-           val_lst[ikey]=find_key(ckey,fid)
+        for ikey,ckey in enumerate(key_lst):
+            val_lst[ikey]=find_key(ckey,fid)
     # return value
     return val_lst
 
 def find_key(char,fid):
     for cline in fid:
         lmatch = re.findall(char,cline)
-        if (lmatch) :
+        if lmatch :
             return re.split(' *= *| *',cline.strip().strip('\n'))[-1]
     return 'N/A'
 # ============================ file parser end =====================================
 
 # ============================ plot utility ========================================
 def add_land_features(ax,cfeature_lst):
-# get isf groiunding line, ice shelf front and coastline
-    for ifeat,cfeat in enumerate(cfeature_lst):
-        if cfeat=='isf':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m',facecolor='none',edgecolor='k')
-        elif cfeat=='lakes':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'lakes'                      , '50m',facecolor='none',edgecolor='k')
-        elif cfeat=='coast':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'coastline'                  , '50m',facecolor='0.75',edgecolor='k')
-        elif cfeat=='land':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'land'                       , '50m',facecolor='0.75',edgecolor='k')
-        elif cfeat=='bathy_z1000':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'          , '10m',facecolor='none',edgecolor='k')
-        elif cfeat=='bathy_z2000':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_I_2000'          , '10m',facecolor='none',edgecolor='k')
-        elif cfeat=='bathy_z3000':
-            feature = cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_H_3000'          , '10m',facecolor='none',edgecolor='k')
-        else:
-            print('feature unknown : '+cfeat)
-            sys.exit(42)
-        ax.add_feature(feature,linewidth=0.5)
+    dfeature={'isf':cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m', facecolor='none'),
+              'lakes':cartopy.feature.NaturalEarthFeature('physical', 'lakes'                    , '50m', facecolor='none'),
+              'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='0.75'),
+              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='0.75'),
+              'bathy_z1000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'  , '10m', facecolor='none'),
+              'bathy_z2000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_I_2000'  , '10m', facecolor='none'),
+              'bathy_z3000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_H_3000'  , '10m', facecolor='none')
+             }
+
+    for _,cfeat in enumerate(cfeature_lst):
+        ax.add_feature(dfeature[cfeat],linewidth=0.5,edgecolor='k')
 
 # ============================ CMAP ====================================
 def get_lvl(bnds):
@@ -74,24 +65,32 @@ def get_lvl(bnds):
         lvlmax = bnds[1]
         lvl=np.linspace(lvlmin, lvlmax, num=10)
     else:
-        lvl=bnds[:]
+        lvl=np.array(bnds[:])
     return lvl
 
-def get_cmap(cpal, bnds, cext='neither', cbad='w'):
-    if bnds:
-        lvl=get_lvl(bnds)
-    else:
-        print(' Need definition of levels (min,max) at least.')
-        sys.exit(42)
+def get_cmap(cpal, bnds, cnorm, cext='neither'):
 
     if cext not in ['neither','both','max','min']:
         print('colorbar extension should be neither, both, max or min')
         sys.exit(42)
 
     cmap = plt.get_cmap(cpal)
-    norm = colors.BoundaryNorm(lvl, cmap.N, extend=cext)
 
-    return cmap,norm,lvl
+    if bnds:
+        lvl=get_lvl(bnds)
+    else:
+        print(' Need definition of levels (min,max) at least.')
+        sys.exit(42)
+
+    if cnorm == 'BoundaryNorm':
+        norm = colors.BoundaryNorm(lvl, cmap.N, extend=cext)
+        #norm = colors.BoundaryNorm(lvl, cmap.N)
+    elif cnorm == 'LogNorm':
+        norm = colors.LogNorm(vmin=lvl[0],vmax=lvl[-1])
+    elif cnorm == 'Normalize':
+        norm = colors.Normalize(vmin=lvl[0],vmax=lvl[-1])
+
+    return cmap,norm
 
 # ============================ LEGEND ==================================
 def get_corner(ax):
@@ -99,15 +98,15 @@ def get_corner(ax):
     x1=ax.get_position().x1
     y0=ax.get_position().y0
     y1=ax.get_position().y1
-    return x0,x1,y0,y1
+    return [x0,x1,y0,y1]
 
 def add_legend(lh,ll,ncol=4,lframe=False,loc='bottom'):
-   if loc=='bottom':
-       lax=plt.axes([0.0, 0.0, 1.0, 0.05])
-   else:
-       print('legend location not yet supported, supported location are: bottom,')
-   plt.legend(lh,ll,loc='center left',ncol=ncol,frameon=lframe,columnspacing=1)
-   lax.set_axis_off()
+    if loc=='bottom':
+        lax=plt.axes([0.0, 0.0, 1.0, 0.05])
+    else:
+        print('legend location not yet supported, supported location are: bottom,')
+    plt.legend(lh,ll,loc='center left',ncol=ncol,frameon=lframe,columnspacing=1)
+    lax.set_axis_off()
 
 # ======================= COLORBAR =======================================
 def get_plt_bound(ax_lst,nplt):
@@ -121,27 +120,27 @@ def get_plt_bound(ax_lst,nplt):
         x1=np.max([x1,bc_lst[iplt].x1])
         y0=np.min([y0,bc_lst[iplt].y0])
         y1=np.max([y1,bc_lst[iplt].y1])
-    return x0, y0, x1, y1
+    return [x0, y0, x1, y1]
 
-def add_colorbar(cb,x0,y0,x1,y1,lvl=None,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboffset=0.02,cbw=0.02):
-    cax  = plt.axes([x1+cboffset, y0, cbw, y1-y0])
-    cbar = plt.colorbar(cb, cax=cax, format=cfmt)
+def add_colorbar(cb,boxxy,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboffset=0.02,cbw=0.02):
+    cax  = plt.axes([boxxy[2]+cboffset, boxxy[1], cbw, boxxy[3]-boxxy[1]])
+    cbar = plt.colorbar(cb, cax=cax, format=cfmt,extend=cext)
     cbar.ax.tick_params(labelsize=fontsize)
-    cbar.ax.set_title(cunit)
+    cbar.ax.set_title(cunit,fontsize=fontsize,y=1.0)
 
 def get_subplt_title(args,nplt):
     # supplot title prefix
     csubplt_title=['']
     if nplt > 1:
         csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
-    
-    # get title list for each subplot 
+
+    # get title list for each subplot
     if args.spfid:
         crun_title = args.spfid[:]
-   
-    # get subtitle extention 
+
+    # get subtitle extention
     if (args.mapreff or args.cntreff) and args.sprid:
-        cref_title=[' - '+cchar for i,cchar in enumerate(args.sprid)]
+        cref_title=[' '+args.maprefop[0]+' '+cchar for i,cchar in enumerate(args.sprid)]
     else:
         cref_title=['']*nplt
 
@@ -152,8 +151,8 @@ def get_subplt_title(args,nplt):
 
     return ctitle
 
-def add_title(ctitle,x0,y0,x1,y1):
-    cax  = plt.axes([x0, y1, x1-x0, 1-y1])
+def add_title(ctitle,boxxy):
+    cax  = plt.axes([boxxy[0], boxxy[3], boxxy[1]-boxxy[0], 1-boxxy[3]])
     cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=20)
     cax.axis('off')
 
@@ -185,11 +184,10 @@ def plot_section_line(fig,cfile_lst):
 def get_name(regex,varlst):
     revar = re.compile(r'\b%s\b'%regex,re.I)
     cvar  = list(filter(revar.match, varlst))
-    if (len(cvar) > 1):
-        print(regex+' name list is longer than 1 or 0; error')
-        print(cvar)
+    if len(cvar) > 1 :
+        print(regex+' name list is longer than 1 or 0')
         print(cvar[0]+' is selected')
-    if (len(cvar) == 0):
+    if len(cvar) == 0 :
         print('no match between '+regex+' and :')
         print(varlst)
         sys.exit(42)
@@ -211,7 +209,7 @@ def get_latlon(cfile,offsety=None):
         lon2d[i, start+1:] += 360
     return lat2d,lon2d
 
-def get_variable_shape(ncid,ncvar):
+def get_variable_shape(ncvar):
     redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
     redimz=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
     redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
@@ -249,12 +247,12 @@ def get_dim(cfile,cdir):
         print('dimension direction unknown, need to be x, y, z or k')
         sys.exit(42)
 
-    cdim=list(filter(redim.match, ncid.dimensions.keys()));
-    if (len(cdim) > 1):
+    cdim=list(filter(redim.match, ncid.dimensions.keys()))
+    if len(cdim) > 1 :
         print(regex+' name list is longer than 1; error')
         print(cdim)
         sys.exit(42)
-    elif (len(cdim) == 0):
+    elif len(cdim) == 0 :
         print(cdir+' dim in '+cfile+' is 0.')
         ndim=0
     else:
@@ -274,13 +272,13 @@ def get_dims(cfile):
 def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     print(' reading '+cvar+' in '+cfile+' ...')
     if not offsety:
-        nx,ny,nz,nt=get_dims(cfile)
+        nx,ny,_,_=get_dims(cfile)
         offsety=ny
 
     ncid   = nc.Dataset(cfile)
     clvar   = get_name(cvar,ncid.variables.keys())
     var    = ncid.variables[clvar]
-    shape = get_variable_shape(ncid,var)
+    shape = get_variable_shape(var)
 
     if shape=='X' :
         print(' 1d variable X => extend it 2d')
@@ -292,25 +290,19 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
         _,dat2d=np.meshgrid(tmp,var[:])
     elif shape=='XY' :
         print(' 2d variable XY')
-        if (klvl > 0) :
-            print('error klvl larger than 0 (klvl = '+str(klvl)+')')
-            sys.exit(42)
-        if (ktime > 0) :
-            print('error ktime larger than 0 (ktime = '+str(ktime)+')')
+        if (klvl > 0) and (ktime > 0) :
+            print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
             sys.exit(42)
         dat2d=var[0:offsety,:]
     elif shape=='XYT' :
         print(' 3d variable XYT')
-        if (klvl > 0) :
-            print('error klvl larger than 0 (klvl = '+str(klvl)+')')
-            sys.exit(42)
-        if (ktime > 0) :
-            print('error ktime larger than 0 (ktime = '+str(ktime)+')')
+        if (klvl > 0) and (ktime > 0) :
+            print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
             sys.exit(42)
         dat2d=var[ktime,0:offsety,:]
     elif shape=='XYZ' :
         print(' 3d variable XYZ')
-        if (ktime > 0) :
+        if ktime > 0 :
             print('error ktime larger than 0 (ktime = '+str(ktime)+')')
             sys.exit(42)
         dat2d=var[klvl,0:offsety,:]
@@ -340,4 +332,3 @@ def get_k_level(zlvl, cfile):
             err0=np.abs(zdep[jk]-z0)
     print('the closest level to the requiered depth is: ', jk0)
     return jk0, zdep[jk0]
-
