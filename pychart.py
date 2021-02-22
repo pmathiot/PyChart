@@ -283,7 +283,9 @@ def main():
     gs = fig.add_gridspec(njsplt, nisplt)
 
     for ifile in range(0,nplt):
-
+        print('')
+        print('start plotting subplot {}/{}'.format(ifile+1,nplt))
+        print('')
         # define subplot
         if args.ploc :
             lpltloc[ifile]=eval('gs['+args.ploc[ifile]+']')
@@ -376,6 +378,8 @@ def main():
             print('plot section line')
             libpc.plot_section_line(ax[ifile],args.secf[:])
 
+    print('')
+
     # remove extra white space
     hpx=0.06+0.035*njsplt
     fig.subplots_adjust(left=0.01,right=0.88, bottom=0.02, top=0.89, wspace=0.1, hspace=hpx)
@@ -385,12 +389,14 @@ def main():
 
     # add common colorbar
     if args.mapf:
+        print('add colorbar')
         libpc.add_colorbar(pcol,corner_coord,cunit=args.cbu[0],cfmt=args.cbfmt[0],cext=cextend)
 
     # put whole figure title
     libpc.add_title(args.ft[0],corner_coord)
 
     # argument lst output
+    print('save figure')
     libpc.save_output(args.o[0],fig)
 
     # show figure

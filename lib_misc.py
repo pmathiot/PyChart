@@ -84,7 +84,6 @@ def get_cmap(cpal, bnds, cnorm, cext='neither'):
 
     if cnorm == 'BoundaryNorm':
         norm = colors.BoundaryNorm(lvl, cmap.N, extend=cext)
-        #norm = colors.BoundaryNorm(lvl, cmap.N)
     elif cnorm == 'LogNorm':
         norm = colors.LogNorm(vmin=lvl[0],vmax=lvl[-1])
     elif cnorm == 'Normalize':
@@ -152,7 +151,7 @@ def get_subplt_title(args,nplt):
     return ctitle
 
 def add_title(ctitle,boxxy):
-    cax  = plt.axes([boxxy[0], boxxy[3], boxxy[1]-boxxy[0], 1-boxxy[3]])
+    cax  = plt.axes([boxxy[0], boxxy[3], boxxy[2]-boxxy[0], 1-boxxy[3]])
     cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=20)
     cax.axis('off')
 
@@ -234,20 +233,15 @@ def get_variable_shape(ncvar):
     return cshape
 
 def get_dim(cfile,cdir):
-    ncid   = nc.Dataset(cfile)
-    if cdir=='x' :
-        redim=re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I)
-    elif cdir=='y' :
-        redim=re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I)
-    elif cdir=='z' :
-        redim=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
-    elif cdir=='t' :
-        redim=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
-    else:
-        print('dimension direction unknown, need to be x, y, z or k')
-        sys.exit(42)
 
-    cdim=list(filter(redim.match, ncid.dimensions.keys()))
+    dncdim={'x':re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I),
+            'y':re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I),
+            'z':re.compile(r"\b(z|dep|depth|deptht)\b", re.I),
+            't':re.compile(r"\b(t|tim|time_counter|time)\b", re.I)    
+           }
+
+    ncid   = nc.Dataset(cfile)
+    cdim=list(filter(dncdim[cdir].match, ncid.dimensions.keys()))
     if len(cdim) > 1 :
         print(regex+' name list is longer than 1; error')
         print(cdim)
@@ -271,6 +265,11 @@ def get_dims(cfile):
 # get_2d_data
 def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     print(' reading '+cvar+' in '+cfile+' ...')
+
+    if (klvl > 0) and (ktime > 0) :
+        print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
+        sys.exit(42)
+
     if not offsety:
         nx,ny,_,_=get_dims(cfile)
         offsety=ny
@@ -280,6 +279,13 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     var    = ncid.variables[clvar]
     shape = get_variable_shape(var)
 
+    dslice={
+            'XY'  :(                                                  slice(0,offsety,None),slice(0,None,None) ),
+            'XYT' :(slice(ktime,ktime+1,None),                        slice(0,offsety,None),slice(0,None,None) ),
+            'XYZ' :(                          slice(klvl,klvl+1,None),slice(0,offsety,None),slice(0,None,None) ),
+            'XYZT':(slice(ktime,ktime+1,None),slice(klvl,klvl+1,None),slice(0,offsety,None),slice(0,None,None) ) 
+           }
+
     if shape=='X' :
         print(' 1d variable X => extend it 2d')
         tmp=np.zeros(shape=(ny,))
@@ -288,32 +294,14 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
         print(' 1d variable Y => extend it 2d')
         tmp=np.zeros(shape=(nx,))
         _,dat2d=np.meshgrid(tmp,var[:])
-    elif shape=='XY' :
-        print(' 2d variable XY')
-        if (klvl > 0) and (ktime > 0) :
-            print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
-            sys.exit(42)
-        dat2d=var[0:offsety,:]
-    elif shape=='XYT' :
-        print(' 3d variable XYT')
-        if (klvl > 0) and (ktime > 0) :
-            print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
-            sys.exit(42)
-        dat2d=var[ktime,0:offsety,:]
-    elif shape=='XYZ' :
-        print(' 3d variable XYZ')
-        if ktime > 0 :
-            print('error ktime larger than 0 (ktime = '+str(ktime)+')')
-            sys.exit(42)
-        dat2d=var[klvl,0:offsety,:]
-    elif len(var.shape)==4 :
-        print(' 4d variable XYZT')
-        dat2d=var[ktime,klvl,0:offsety,:]
+    elif (shape=='XY') or (shape=='XYT') or (shape=='XYZ') or (shape=='XYZT') :
+        dat2d=var[dslice[shape]].squeeze()
     else:
         print(cvar+' contains '+str(len(var.shape))+' dimensions')
         print('dimension names are ',var.dimensions)
         print(' shape '+shape+' is unknown, exit ')
         sys.exit(42)
+
     ncid.close()
 
     return dat2d
@@ -331,4 +319,7 @@ def get_k_level(zlvl, cfile):
             jk0=jk
             err0=np.abs(zdep[jk]-z0)
     print('the closest level to the requiered depth is: ', jk0)
+
+    ncid.close()
+
     return jk0, zdep[jk0]
