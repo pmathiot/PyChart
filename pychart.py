@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 
 import lib_misc as libpc
+import cb
 
 def sanity_check(args):
     # sanity check
@@ -134,6 +135,8 @@ def get_argument():
                                       type=str  , nargs=1  , required=False)
     parser.add_argument("--cntrefv" , metavar='contour ref var '         , help="contour reference variable"     , \
                                       type=str  , nargs=1  , required=False)
+    parser.add_argument("--cntrefop", metavar='contour_ref_operation'     , help="operation made for comparison"  , \
+                                      type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
     parser.add_argument("--cntsf"   , metavar='contour data scale factor', help="contour data scale factor"      , \
                                       type=float, nargs=1  , default=[1.0]    , required=False)
     parser.add_argument("--cntjk"   , metavar='contour jk level'         , help="contour jk level "              , \
@@ -244,7 +247,7 @@ def main():
 
     # define contour lvl
     if args.cntf:
-        cntlvl=libpc.get_lvl(args.cntlvl)
+        cntlvl=cb.get_lvl(args.cntlvl)
         cntclr=[None]*len(cntlvl)
         for ii, val in enumerate(cntlvl):
             if val<0:
@@ -253,8 +256,7 @@ def main():
                 cntclr[ii]='k'
 
     # get map colorbar
-    cextend=args.cbext[0]
-    cmap, norm = libpc.get_cmap(args.cbn[0],args.cblvl,args.cbnorm[0], cext=cextend)
+    mapcb=cb.cb(args.cbn[0],args.cbnorm[0],args.cbu[0],args.cbfmt[0],args.cbext[0],args.cblvl)
 
     # get map/cnt scale factor
     map_sf=args.mapsf[0]
@@ -342,7 +344,7 @@ def main():
                 maptoplot2d=(mapvar2dm/mapref2dm)
 
             pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
-                                        cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
+                                        cmap=mapcb.cmap,norm=mapcb.norm,transform=ccrs.PlateCarree(),rasterized=True)
 
         # add contour if ask
         if args.cntf:
@@ -356,12 +358,12 @@ def main():
             else:
                 cntref2dm = 0.0
 
-            if args.mapcntop[0] == '-':
+            if args.cntrefop[0] == '-':
                 cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
             elif args.cntrefop[0] == '/':
                 cnttoplot2d=(cntvar2dm/cntref2dm)
 
-            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot[::ncrs,::ncrs], \
+            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot2d[::ncrs,::ncrs], \
                               levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
 
         # add bathy line if ask
@@ -392,7 +394,7 @@ def main():
     # add common colorbar
     if args.mapf:
         print('add colorbar')
-        libpc.add_colorbar(pcol,corner_coord,cunit=args.cbu[0],cfmt=args.cbfmt[0],cext=cextend)
+        mapcb.add_colorbar(pcol,corner_coord)
 
     # put whole figure title
     libpc.add_title(args.ft[0],corner_coord)
