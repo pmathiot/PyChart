@@ -12,6 +12,24 @@ import matplotlib.colors as colors
 
 # ============================ output argument list in txt file ================
 def save_output(cfile, fig):
+    """
+    save command line as string in a text file.
+    save figure.
+
+    Parameters
+    ----------
+    parameter 1: string
+        file name used for the figure and command line record (without extension)
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    No raise
+    """
+
     # save argument list
     fid = open(cfile+'.txt',"w")
     fid.write(' python '+subprocess.list2cmdline(sys.argv[0:])+'\n')
@@ -54,6 +72,26 @@ def add_land_features(ax,cfeature_lst):
 
 # ============================ CMAP ====================================
 def get_lvl(bnds):
+    """
+    compute an array of discrete levels used to define the colormap based on a list of levels of length 2, 3 or more.
+    If the list length is 2, 10 equidistance levels are computed from list[0] to list[1]
+                          3, X levels are computed from list[0] to list[1] by a step of list[2]
+                         >3, the levels are the one specified in the input parameters
+
+    Parameters
+    ----------
+    parameter 1: list
+        list of levels (length 2, 3 or more)
+
+    Returns
+    -------
+    output 1: np.array
+        array of levels
+
+    Raises
+    ------
+    No raise
+    """
     if len(bnds)==3 :
         lvlmin = bnds[0]
         lvlmax = bnds[1]
@@ -69,11 +107,26 @@ def get_lvl(bnds):
     return lvl
 
 def get_cmap(cpal, bnds, cnorm, cext='neither'):
+    """
+    define the colormap and the norm to used for pcolormesh
 
-    if cext not in ['neither','both','max','min']:
-        print('colorbar extension should be neither, both, max or min')
-        sys.exit(42)
+    Parameters
+    ----------
+    parameter 1: string
+        cmap name (from the default availble colormap in python)
+    parameter 2: string
+        type of norm to use (BoundaryNorm, LogNorm, Normalize)
+    parameter 3: type of extention of the colorbar (neither, both, max, min)'
 
+    Returns
+    -------
+    output 1: cmap (cmap object)
+    output 2: norm (colors object)
+
+    Raises
+    ------
+    No raise
+    """
     cmap = plt.get_cmap(cpal)
 
     if bnds:
@@ -93,11 +146,25 @@ def get_cmap(cpal, bnds, cnorm, cext='neither'):
 
 # ============================ LEGEND ==================================
 def get_corner(ax):
-    x0=ax.get_position().x0
-    x1=ax.get_position().x1
-    y0=ax.get_position().y0
-    y1=ax.get_position().y1
-    return [x0,x1,y0,y1]
+    """
+    find the coordinate of the axes
+
+    Parameters
+    ----------
+    parameter 1: axe
+
+    Returns
+    -------
+    output 1: list
+        position box [x left, x right, y bottom, y top]
+
+    Raises
+    ------
+    No raise
+    """
+
+    box=ax.get_position()
+    return [box.x0,box.x1,box.y0,box.y1]
 
 def add_legend(lh,ll,ncol=4,lframe=False,loc='bottom'):
     if loc=='bottom':
@@ -109,16 +176,30 @@ def add_legend(lh,ll,ncol=4,lframe=False,loc='bottom'):
 
 # ======================= COLORBAR =======================================
 def get_plt_bound(ax_lst,nplt):
-# get plot corner position
-    bc_lst = [None] * nplt
+    """
+    find the box containing of a list of axes
+
+    Parameters
+    ----------
+    parameter 1: list of axes
+
+    Returns
+    -------
+    output 1: list
+        position box [x left, x right, y bottom, y top]
+
+    Raises
+    ------
+    No raise
+    """
     x0=1.0; x1=0.0; y0=1.0; y1=0.0
     for iplt in range(0,nplt):
         ax_lst[iplt].apply_aspect()
-        bc_lst[iplt] = ax_lst[iplt].get_position()
-        x0=np.min([x0,bc_lst[iplt].x0])
-        x1=np.max([x1,bc_lst[iplt].x1])
-        y0=np.min([y0,bc_lst[iplt].y0])
-        y1=np.max([y1,bc_lst[iplt].y1])
+        box = get_corner(ax_lst[iplt])
+        x0=np.min([x0,box[0]])
+        x1=np.max([x1,box[1]])
+        y0=np.min([y0,box[2]])
+        y1=np.max([y1,box[3]])
     return [x0, y0, x1, y1]
 
 def add_colorbar(cb,boxxy,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboffset=0.02,cbw=0.02):
@@ -127,6 +208,7 @@ def add_colorbar(cb,boxxy,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboff
     cbar.ax.tick_params(labelsize=fontsize)
     cbar.ax.set_title(cunit,fontsize=fontsize,y=1.0)
 
+# ======================= TITLE =======================================
 def get_subplt_title(args,nplt):
     # supplot title prefix
     csubplt_title=['']
@@ -237,7 +319,7 @@ def get_dim(cfile,cdir):
     dncdim={'x':re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I),
             'y':re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I),
             'z':re.compile(r"\b(z|dep|depth|deptht)\b", re.I),
-            't':re.compile(r"\b(t|tim|time_counter|time)\b", re.I)    
+            't':re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
            }
 
     ncid   = nc.Dataset(cfile)
@@ -283,7 +365,7 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
             'XY'  :(                                                  slice(0,offsety,None),slice(0,None,None) ),
             'XYT' :(slice(ktime,ktime+1,None),                        slice(0,offsety,None),slice(0,None,None) ),
             'XYZ' :(                          slice(klvl,klvl+1,None),slice(0,offsety,None),slice(0,None,None) ),
-            'XYZT':(slice(ktime,ktime+1,None),slice(klvl,klvl+1,None),slice(0,offsety,None),slice(0,None,None) ) 
+            'XYZT':(slice(ktime,ktime+1,None),slice(klvl,klvl+1,None),slice(0,offsety,None),slice(0,None,None) )
            }
 
     if shape=='X' :

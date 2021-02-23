@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 
-sys.path.insert(0,'/home/h05/pmathiot/PYTHON/PYCHART_GIT/')
 import lib_misc as libpc
 
 def sanity_check(args):
@@ -21,12 +20,13 @@ def sanity_check(args):
             print('Length of contour file list and title list is not the same length, exit')
             sys.exit(42)
 
+    if args.mapjk and args.mapz:
+        print('ERROR, --mapjk and --mapz defined together, check script argument list')
+        sys.exit(42)
+
 def get_jk(jk0=None,z0=None,cfile=None):
     jk=0
     if cfile:
-        if jk0 and z0:
-            print('ERROR, jk and z define, check script argument list')
-            sys.exit(42)
         if jk0:
             jk=jk0[0]
         elif z0:
@@ -82,7 +82,7 @@ def get_argument():
     parser.add_argument("--maprefv" , metavar='pcolor_ref_var_name'      , help="reference variable name"        , \
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
-                                      type=str  , nargs=1  , default=['-']     , required=False)
+                                      type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
                                       type=float, nargs=1  , default=[1.0]     , required=False)
     parser.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , \
@@ -91,17 +91,17 @@ def get_argument():
                                       type=float, nargs=1  , required=False)
 
     parser.add_argument("--cbn"     , metavar='colormap_name'            , help="color map name"                 , \
-                                      type=str  , nargs=1  , default=['jet']   , required=False)
+                                      type=str  , nargs=1  , default=['viridis']   , required=False)
     parser.add_argument("--cblvl"   , metavar='colorbar_range'           , help="color range"                    , \
                                       type=float, nargs="+", required=True )
     parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm)", \
-                                      type=str, nargs=1, default=['BoundaryNorm'], required=False )
+                                      type=str, nargs=1, default=['BoundaryNorm'], choices=['BoundaryNorm','LogNorm','Normalize'], required=False )
     parser.add_argument("--cbu"     , metavar='colorbar_unit'            , help="colorbar unit"                  , \
                                       type=str  , nargs=1  , default=['']      , required=False)
     parser.add_argument("--cbfmt"   , metavar='colorbar_fmt'             , help="colorbar format"                , \
                                       type=str  , nargs=1  , default=['%5.2f'] , required=False)
     parser.add_argument("--cbext"   , metavar='colorbar_extend'          , help="colorbar extend"                , \
-                                      type=str  , nargs=1  , default=['both']  , required=False)
+                                      type=str  , nargs=1  , default=['both'], choices=['both', 'neither', 'max', 'min']  , required=False)
 
     parser.add_argument("--ft"      , metavar='figure_title'             , help="title of the whole figure"      , \
                                       type=str  , nargs=1  , default=['']      , required=False)
@@ -114,7 +114,7 @@ def get_argument():
     parser.add_argument("--mesh"    , metavar='mesh file name'           , help="mesh file name"                 , \
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--llonce"  , metavar='read lat/lon each time'   , help="read lat/lon for each plot [0=no]", \
-                                      type=int, nargs=1  , default=[1]       , required=False)
+                                      type=int, nargs=1  , default=[1]   , choices=[0, 1]    , required=False)
     parser.add_argument("--sp"      , metavar='subplot disposition'      , help="subplot disposition (ixj)"      , \
                                       type=str  , nargs=1  , default=['1x1']   , required=False)
     parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="0,0 : top left plot, 0,: : top line", \
@@ -125,6 +125,7 @@ def get_argument():
                                       type=str  , nargs=1  , default=['global'], required=False)
     parser.add_argument("--crs"     , metavar='sampling value'           , help="sampling value (every ncrs pts)", \
                                       type=int  , nargs=1  , default=[1],        required=False)
+
     parser.add_argument("--cntf"    , metavar='contour file'             , help="contour file list"              , \
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--cntv"    , metavar='contour var '             , help="contour variable"               , \
@@ -225,6 +226,7 @@ def main():
     joffset=args.joffset[0]
 
     # get file and title list and sanity check
+    # to be simplify as cnt and map use same code (use of class a class ?)
     if args.mapf:
         cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
         mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
@@ -238,11 +240,7 @@ def main():
         cntjk=get_jk(args.cntjk,args.cntz,ccntrunfile[0])
 
         if args.cntreff:
-            if len(args.cntreff)==1 :
-                cntref2d=libpc.get_2d_data(args.cntreff[0],args.cntrefv[0],klvl=cntjk,offsety=joffset)
-            else:
-                print('more than 1 cnt ref file, not yet implememnnted')
-                sys.exit(42)
+            ccntreffile,ccntrefvar=get_file_and_varname(args.dir[0],args.cntreff[:],args.cntrefv[:])
 
     # define contour lvl
     if args.cntf:
@@ -327,38 +325,42 @@ def main():
 
         # add map if ask
         if args.mapf:
+            print('plot pcolormesh ...')
+
             mapvar2d  = libpc.get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
             mapvar2dm = np.ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
             if args.mapreff:
                 # def file list
                 mapref2d=libpc.get_2d_data(cmapreffile[ifile],cmaprefvar[ifile],klvl=mapjk,offsety=joffset)
-                mapref2dm = np.ma.masked_where(mapref2d*msk==0.0,mapref2d)
+                mapref2dm = np.ma.masked_where(msk*mapref2d==0.0,mapref2d)
             else:
                 mapref2dm = 0.0
 
-            print('plot pcolormesh ...')
             if args.maprefop[0] == '-':
                 maptoplot2d=(mapvar2dm-mapref2dm)*map_sf
             elif args.maprefop[0] == '/':
-                maptoplot2d=(mapvar2dm/mapref2dm)*map_sf
-            else:
-                print('operation not known')
-                sys.exit(42)
+                maptoplot2d=(mapvar2dm/mapref2dm)
 
             pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
                                         cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
 
         # add contour if ask
         if args.cntf:
+            print('plot contour ...')
+            # need to be simplify as same code as map (input runf,runv,reff,refv,jk,offset,msk,cnt_sf)
             cntvar2d  = libpc.get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
             cntvar2dm = np.ma.masked_where(cntvar2d==0.0,cntvar2d)
             if args.cntreff:
+                cntref2d=libpc.get_2d_data(ccntreffile[ifile],ccntrefvar[ifile],klvl=cntjk,offsety=joffset)
                 cntref2dm = np.ma.masked_where(msk*cntref2d==0.0,cntref2d)
             else:
                 cntref2dm = 0.0
 
-            print('plot contour ...')
-            cnttoplot=(cntvar2dm-cntref2dm)*cnt_sf
+            if args.mapcntop[0] == '-':
+                cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
+            elif args.cntrefop[0] == '/':
+                cnttoplot2d=(cntvar2dm/cntref2dm)
+
             ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot[::ncrs,::ncrs], \
                               levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
 
