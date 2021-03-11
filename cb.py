@@ -5,42 +5,64 @@ import matplotlib.colors as colors
 # ============================ CMAP ====================================
 
 class cb:
+    """
+    A class to represent a colormap
+
+    Attributes
+    ----------
+    cmap : cmap object
+        colormap used in pcolormesh
+    norm : colors.norm object
+        normalisation used in pcolormesh
+
+    Methods
+    -------
+    add_colorbar:
+        add a colorbar to the plot
+    """
 
     def __init__(self,cmap,cnorm,cunit,cfmt,cext,lvls):
-        self.unit=cunit
-        self.fmt=cfmt
-        self.ext=cext
-        self.cmap=plt.get_cmap(cmap)
+        self._unit=cunit
+        self._fmt=cfmt
+        self._ext=cext
+        self._lvls=get_lvl(lvls)
 
-        self.__set_norm(lvls,cnorm)
+        self.cmap = plt.get_cmap(cmap)
+        self.norm = self._compute_norm(cnorm)
 
-    def __get_norm(self):
-        return self.__norm
+    @property
+    def norm(self):
+        return self._norm
 
-    def __set_norm(self,bnds,cnorm):
+    @norm.setter
+    def norm(self,norm):
+        self._norm = norm
 
-        if bnds:
-            lvl=get_lvl(bnds)
-        else:
-            print(' Need definition of levels (min,max) at least.')
-            sys.exit(42)
+    @property
+    def cmap(self):
+        return self._cmap
 
-        if cnorm == 'BoundaryNorm':
-            clrsnorm = colors.BoundaryNorm(lvl, self.cmap.N, extend=self.ext)
-        elif cnorm == 'LogNorm':
-            clrsnorm = colors.LogNorm(vmin=lvl[0],vmax=lvl[-1])
-        elif cnorm == 'Normalize':
-            clrsnorm = colors.Normalize(vmin=lvl[0],vmax=lvl[-1])
-        self.__norm = clrsnorm
-    
-    norm = property(__get_norm, __set_norm)
+    @cmap.setter
+    def cmap(self,cmap):
+        self._cmap = cmap
 
-    def add_colorbar(self,pcol,boxxy,cunit='',fontsize=16,cboffset=0.02,cbw=0.02):
+    def _compute_norm(self,cnorm):
+        dnorm={
+               'BoundaryNorm':colors.BoundaryNorm(self._lvls, self.cmap.N, extend=self._ext),
+               'LogNorm':colors.LogNorm(vmin=self._lvls[0],vmax=self._lvls[-1]),
+               'Normalize':colors.Normalize(vmin=self._lvls[0],vmax=self._lvls[-1])
+              }
+        return dnorm[cnorm]
+
+    def add_colorbar(self,pcol,boxxy,fontsize=16,cboffset=0.02,cbw=0.02):
         cax  = plt.axes([boxxy[2]+cboffset, boxxy[1], cbw, boxxy[3]-boxxy[1]])
-        cbar = plt.colorbar(pcol, cax=cax, format=self.fmt,extend=self.ext)
+        cbar = plt.colorbar(pcol, cax=cax, format=self._fmt,extend=self._ext)
         cbar.ax.tick_params(labelsize=fontsize)
-        cbar.ax.set_title(self.unit,fontsize=fontsize,y=1.0)
+        cbar.ax.set_title(self._unit,fontsize=fontsize,y=1.0)
         return cax, cbar
+
+    def __str__(self):
+        return 'cb : {}, {}, {}'.format(self.unit,self.fmt,self.ext)
 
 def get_lvl(bnds):
     """
@@ -63,18 +85,22 @@ def get_lvl(bnds):
     ------
     No raise
     """
-    if len(bnds)==3 :
+    if len(bnds)==2:
+        lvlmin = bnds[0]
+        lvlmax = bnds[1]
+        lvl=np.linspace(lvlmin, lvlmax, num=10)
+    elif len(bnds)==3 :
         lvlmin = bnds[0]
         lvlmax = bnds[1]
         lvlint = bnds[2]
         lvlmax = lvlmin+round((lvlmax-lvlmin)/lvlint)*lvlint
         lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
-    elif len(bnds)==2:
-        lvlmin = bnds[0]
-        lvlmax = bnds[1]
-        lvl=np.linspace(lvlmin, lvlmax, num=10)
-    else:
+    elif len(bnds) > 3:
         lvl=np.array(bnds[:])
+    else:
+        print(' Need definition of levels (min,max) at least.')
+        sys.exit(42)
+
     return lvl
 
 

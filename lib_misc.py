@@ -42,7 +42,7 @@ def add_land_features(ax,cfeature_lst):
     dfeature={'isf':cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m', facecolor='none'),
               'lakes':cartopy.feature.NaturalEarthFeature('physical', 'lakes'                    , '50m', facecolor='none'),
               'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='0.75'),
-              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='0.75'),
+              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='none'),#0.75'),
               'bathy_z1000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'  , '10m', facecolor='none'),
               'bathy_z2000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_I_2000'  , '10m', facecolor='none'),
               'bathy_z3000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_H_3000'  , '10m', facecolor='none')
@@ -50,6 +50,66 @@ def add_land_features(ax,cfeature_lst):
 
     for _,cfeat in enumerate(cfeature_lst):
         ax.add_feature(dfeature[cfeat],linewidth=0.5,edgecolor='k')
+
+def def_projection(proj_name):
+    dproj={
+           'ortho_natl'  :[ ccrs.Orthographic(central_longitude=-60.0, central_latitude=45.0)   , \
+                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
+           'south_stereo':[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
+           'south_ocean' :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-180, 180, -90, -45),ccrs.PlateCarree()] ],
+           'ant'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-180, 180, -90, -65),ccrs.PlateCarree()] ],
+           'arctic'      :[ ccrs.Stereographic(central_latitude= 90.0, central_longitude=0.0)   , \
+                            [(-180, 180, 60, 90)  ,ccrs.PlateCarree()] ],
+           'ross'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
+                            [(-6.67e5,8.33e5,1.05e6,2.47e6), 'cproj' ] ],
+           'pig'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(  -96, -105, -73.9, -76),ccrs.PlateCarree()] ],
+           'amu'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(  -99, -130, -70, -78),ccrs.PlateCarree()] ], 
+           'global'         :[ ccrs.PlateCarree()                    , ['global'] ],
+           'global_robinson':[ ccrs.Robinson(central_longitude=0)    , ['global'] ],
+           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ]
+          }
+#    elif proj_name=='natl' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
+#    elif proj_name=='greenland' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
+#    elif proj_name=='ovf' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
+#    elif proj_name=='ovf_larger' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-2.5e5,2.45e6,0.9e6,3.6e6]
+#    elif proj_name=='irminger' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-2.164e5,1.395e6,1.635e6,3.265e6]
+#    elif proj_name=='japan' :
+#        proj=ccrs.LambertConformal(150, 30,cutoff=10)
+#        XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
+#    elif proj_name=='feroe' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
+#    elif proj_name=='gulf_stream' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[(-4.250e6,1.115e5,-1.546e6,2.8155e6), proj]
+#    else:
+#        print('projection '+proj_name+' unknown')
+#        print('should be ross, gulf_stream, feroe, global_mercator, global_robinson, japan'
+#              ', ovf, greenland, natl, global, south_stereo, ant')
+#        sys.exit(42)
+
+    proj=dproj[proj_name][0]
+
+    XY_lim=dproj[proj_name][1]
+    if XY_lim[-1]=='cproj':
+        XY_lim[-1]=proj
+
+    return proj, XY_lim
 
 # ============================ LEGEND ==================================
 def get_corner(ax):
@@ -167,7 +227,7 @@ def get_latlon(cfile,offsety=None):
 
 def get_variable_shape(ncvar):
     redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
-    redimz=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
+    redimz=re.compile(r"\b(z|dep|depth|deptht|nav_lev)\b", re.I)
     redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
     redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
     dimlst = ncvar.dimensions

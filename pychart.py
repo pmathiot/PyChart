@@ -85,7 +85,7 @@ def get_argument():
     parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
                                       type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
-                                      type=float, nargs=1  , default=[1.0]     , required=False)
+                                      type=float, nargs='+', required=False)
     parser.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , \
                                       type=int  , nargs=1  , required=False)
     parser.add_argument("--mapz"    , metavar='pcolor_z_depth'           , help="depth of the map"               , \
@@ -157,61 +157,6 @@ def get_argument():
                                       type=int  , nargs=1  , default=[0],required=False)
     return parser.parse_args()
 
-def def_projection(proj_name):
-    dproj={
-           'ortho_natl'  :[ ccrs.Orthographic(central_longitude=-60.0, central_latitude=45.0)   , \
-                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
-           'south_stereo':[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
-                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
-           'south_ocean' :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
-                            [(-180, 180, -90, -45),ccrs.PlateCarree()] ],
-           'ant'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
-                            [(-180, 180, -90, -65),ccrs.PlateCarree()] ],
-           'arctic'      :[ ccrs.Stereographic(central_latitude= 90.0, central_longitude=0.0)   , \
-                            [(-180, 180, 60, 90)  ,ccrs.PlateCarree()] ],
-           'ross'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
-                            [(-6.67e5,8.33e5,1.05e6,2.47e6), 'cproj' ] ],
-           'global'         :[ ccrs.PlateCarree()                    , ['global'] ],
-           'global_robinson':[ ccrs.Robinson(central_longitude=0)    , ['global'] ],
-           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ]
-          }
-#    elif proj_name=='natl' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
-#    elif proj_name=='greenland' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
-#    elif proj_name=='ovf' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
-#    elif proj_name=='ovf_larger' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-2.5e5,2.45e6,0.9e6,3.6e6]
-#    elif proj_name=='irminger' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-2.164e5,1.395e6,1.635e6,3.265e6]
-#    elif proj_name=='japan' :
-#        proj=ccrs.LambertConformal(150, 30,cutoff=10)
-#        XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
-#    elif proj_name=='feroe' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
-#    elif proj_name=='gulf_stream' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[(-4.250e6,1.115e5,-1.546e6,2.8155e6), proj]
-#    else:
-#        print('projection '+proj_name+' unknown')
-#        print('should be ross, gulf_stream, feroe, global_mercator, global_robinson, japan'
-#              ', ovf, greenland, natl, global, south_stereo, ant')
-#        sys.exit(42)
-
-    proj=dproj[proj_name][0]
-
-    XY_lim=dproj[proj_name][1]
-    if XY_lim[-1]=='cproj':
-        XY_lim[-1]=proj
-
-    return proj, XY_lim
 # =======================================================================================================================================================
 
 def main():
@@ -222,7 +167,7 @@ def main():
     sanity_check(args)
 
     # get projection and extend
-    proj, XY_lim = def_projection(args.p[0])
+    proj, XY_lim = libpc.def_projection(args.p[0])
 
     # deals with ref file
     mapref2d=0.0
@@ -258,16 +203,19 @@ def main():
     # get map colorbar
     mapcb=cb.cb(args.cbn[0],args.cbnorm[0],args.cbu[0],args.cbfmt[0],args.cbext[0],args.cblvl)
 
-    # get map/cnt scale factor
-    map_sf=args.mapsf[0]
-    cnt_sf=args.cntsf[0]
-
     # get subplot disposition
     if args.mapf:
         nplt=len(cmaprunfile)
     elif args.cntf:
         nplt=len(ccntrunfile)
     nisplt,njsplt = get_subplot(args.sp[0],nplt)
+
+    # get map/cnt scale factor
+    if args.mapsf:
+        map_sf=args.mapsf[:]
+    else:
+        map_sf=[1.0]*nplt
+    cnt_sf=args.cntsf[0]
 
     # title list
     csptitle = libpc.get_subplt_title(args,nplt)
@@ -319,7 +267,7 @@ def main():
             ax[ifile].set_extent(XY_lim[0], XY_lim[1])
 
         libpc.add_land_features(ax[ifile],['isf','lakes','land'])
-        ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')
+        ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')#,draw_labels=True)# dms=True, x_inline=False, y_inline=False)
         ax[ifile].set_title(csptitle[ifile],fontsize=18)
 
         # make plot
@@ -339,10 +287,10 @@ def main():
                 mapref2dm = 0.0
 
             if args.maprefop[0] == '-':
-                maptoplot2d=(mapvar2dm-mapref2dm)*map_sf
+                print('compute map to plot')
+                maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
             elif args.maprefop[0] == '/':
                 maptoplot2d=(mapvar2dm/mapref2dm)
-
             pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
                                         cmap=mapcb.cmap,norm=mapcb.norm,transform=ccrs.PlateCarree(),rasterized=True)
 
@@ -386,7 +334,7 @@ def main():
 
     # remove extra white space
     hpx=0.06+0.035*njsplt
-    fig.subplots_adjust(left=0.01,right=0.88, bottom=0.02, top=0.89, wspace=0.1, hspace=hpx)
+    fig.subplots_adjust(left=0.01,right=0.88, bottom=0.02, top=0.85, wspace=0.1, hspace=hpx)
 
     # get_figure_corner position
     corner_coord = libpc.get_plt_bound(ax, nplt) # left, bottom, right, top
