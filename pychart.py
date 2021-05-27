@@ -95,8 +95,8 @@ def get_argument():
                                       type=str  , nargs=1  , default=['viridis']   , required=False)
     parser.add_argument("--cblvl"   , metavar='colorbar_range'           , help="color range"                    , \
                                       type=float, nargs="+", required=True )
-    parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm)", \
-                                      type=str, nargs=1, default=['BoundaryNorm'], choices=['BoundaryNorm','LogNorm','Normalize'], required=False )
+    parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm, TwoSlopeNorm)", \
+                                      type=str, nargs=1, default=['BoundaryNorm'], choices=['BoundaryNorm','LogNorm','Normalize','TwoSlopeNorm'], required=False )
     parser.add_argument("--cbu"     , metavar='colorbar_unit'            , help="colorbar unit"                  , \
                                       type=str  , nargs=1  , default=['']      , required=False)
     parser.add_argument("--cbfmt"   , metavar='colorbar_fmt'             , help="colorbar format"                , \
@@ -126,6 +126,8 @@ def get_argument():
                                       type=str  , nargs=1  , default=['global'], required=False)
     parser.add_argument("--crs"     , metavar='sampling value'           , help="sampling value (every ncrs pts)", \
                                       type=int  , nargs=1  , default=[1],        required=False)
+    parser.add_argument("--debug"   , metavar='box index [imin, imax, jmin, jmax]', help=" box index [imin, imax, jmin, jmax]", \
+                                      type=int  , nargs=4  , required=False)
 
     parser.add_argument("--cntf"    , metavar='contour file'             , help="contour file list"              , \
                                       type=str  , nargs="+", required=False)
@@ -167,7 +169,11 @@ def main():
     sanity_check(args)
 
     # get projection and extend
-    proj, XY_lim = libpc.def_projection(args.p[0])
+    if args.debug:
+        proj=None
+        XY_lim = [ tuple(args.debug), 'pxl' ]
+    else:
+        proj, XY_lim = libpc.def_projection(args.p[0])
 
     # deals with ref file
     mapref2d=0.0
@@ -249,25 +255,33 @@ def main():
             msk = np.ma.masked_where(msk==0.0,msk)
 
         # deal with mesh
-        if args.mesh:
-            cmeshf=get_var_lst(args.mesh,args.mapf)
-            cllfile=cmeshf[ifile]
-        else:
-            cllfile=cmaprunfile[ifile]
-        if (args.llonce[0]==0 or ifile == 0):
-            lat2d,lon2d=libpc.get_latlon(cllfile,joffset)
+        if not args.debug :
+            if args.mesh:
+                cmeshf=get_var_lst(args.mesh,args.mapf)
+                cllfile=cmeshf[ifile]
+            else:
+                cllfile=cmaprunfile[ifile]
+            if (args.llonce[0]==0 or ifile == 0):
+                lat2d,lon2d=libpc.get_latlon(cllfile,joffset)
 
         # define subplot
         ax[ifile] = fig.add_subplot(lpltloc[ifile], projection=proj)
 
         # put proj, extend, grid ...
-        if XY_lim[0] == 'global':
-            ax[ifile].set_global()
-        else:
-            ax[ifile].set_extent(XY_lim[0], XY_lim[1])
+        if args.debug :
+            ax[ifile].set_xlim(XY_lim[0][0:2])
+            ax[ifile].set_ylim(XY_lim[0][2:4])
+            ax[ifile].tick_params(labelsize=14)
+            ax[ifile].grid(True)
+        else: 
+            if XY_lim[0] == 'global':
+                ax[ifile].set_global()
+            else:
+                ax[ifile].set_extent(XY_lim[0], XY_lim[1])
 
-        libpc.add_land_features(ax[ifile],['isf','lakes','land'])
-        ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')#,draw_labels=True)# dms=True, x_inline=False, y_inline=False)
+            libpc.add_land_features(ax[ifile],['isf','lakes','land'])
+            ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')#,draw_labels=True)# dms=True, x_inline=False, y_inline=False)
+
         ax[ifile].set_title(csptitle[ifile],fontsize=18)
 
         # make plot
@@ -291,8 +305,13 @@ def main():
                 maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
             elif args.maprefop[0] == '/':
                 maptoplot2d=(mapvar2dm/mapref2dm)
-            pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
-                                        cmap=mapcb.cmap,norm=mapcb.norm,transform=ccrs.PlateCarree(),rasterized=True)
+          
+            if args.debug :
+                pcol = ax[ifile].pcolormesh(maptoplot2d[::ncrs,::ncrs], cmap=mapcb.cmap, norm=mapcb.norm, rasterized=True, )
+                ax[ifile].grid()
+            else:
+                pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
+                                            cmap=mapcb.cmap,norm=mapcb.norm,transform=ccrs.PlateCarree(),rasterized=True)
 
         # add contour if ask
         if args.cntf:
@@ -334,7 +353,7 @@ def main():
 
     # remove extra white space
     hpx=0.06+0.035*njsplt
-    fig.subplots_adjust(left=0.01,right=0.88, bottom=0.02, top=0.85, wspace=0.1, hspace=hpx)
+    fig.subplots_adjust(left=0.05,right=0.88, bottom=0.06, top=0.85, wspace=0.1, hspace=hpx)
 
     # get_figure_corner position
     corner_coord = libpc.get_plt_bound(ax, nplt) # left, bottom, right, top

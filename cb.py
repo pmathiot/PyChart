@@ -25,7 +25,11 @@ class cb:
         self._unit=cunit
         self._fmt=cfmt
         self._ext=cext
-        self._lvls=get_lvl(lvls)
+
+        if cnorm == 'TwoSlopeNorm':
+            self._lvls=[lvls[0],lvls[2],lvls[1]]
+        else:
+            self._lvls=get_lvl(lvls)
 
         self.cmap = plt.get_cmap(cmap)
         self.norm = self._compute_norm(cnorm)
@@ -50,7 +54,8 @@ class cb:
         dnorm={
                'BoundaryNorm':colors.BoundaryNorm(self._lvls, self.cmap.N, extend=self._ext),
                'LogNorm':colors.LogNorm(vmin=self._lvls[0],vmax=self._lvls[-1]),
-               'Normalize':colors.Normalize(vmin=self._lvls[0],vmax=self._lvls[-1])
+               'Normalize':colors.Normalize(vmin=self._lvls[0],vmax=self._lvls[-1]),
+               'TwoSlopeNorm':colors.TwoSlopeNorm(vmin=self._lvls[0],vmax=self._lvls[2],vcenter=self._lvls[1])
               }
         return dnorm[cnorm]
 
