@@ -251,7 +251,8 @@ def main():
         if args.mask:
             cmsk=args.mask[ifile]
             print('open '+cmsk)
-            msk = libpc.get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
+            #msk = libpc.get_2d_data(cmsk,'tmaskutil',klvl=mapjk,offsety=joffset)
+            msk = libpc.get_2d_data(cmsk,'tmaskutil',offsety=joffset)
             msk = np.ma.masked_where(msk==0.0,msk)
 
         # deal with mesh
@@ -300,10 +301,12 @@ def main():
             else:
                 mapref2dm = 0.0
 
+            print('compute map to plot')
             if args.maprefop[0] == '-':
-                print('compute map to plot')
+                print('operation is -')
                 maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
             elif args.maprefop[0] == '/':
+                print('operation is /')
                 maptoplot2d=(mapvar2dm/mapref2dm)
           
             if args.debug :
@@ -318,7 +321,12 @@ def main():
             print('plot contour ...')
             # need to be simplify as same code as map (input runf,runv,reff,refv,jk,offset,msk,cnt_sf)
             cntvar2d  = libpc.get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
-            cntvar2dm = np.ma.masked_where(cntvar2d==0.0,cntvar2d)
+            lcntmsk=False
+            if lcntmsk :
+                cntvar2dm = np.ma.masked_where(cntvar2d==0.0,cntvar2d)
+            else:
+               cntvar2dm = cntvar2d
+
             if args.cntreff:
                 cntref2d=libpc.get_2d_data(ccntreffile[ifile],ccntrefvar[ifile],klvl=cntjk,offsety=joffset)
                 cntref2dm = np.ma.masked_where(msk*cntref2d==0.0,cntref2d)
