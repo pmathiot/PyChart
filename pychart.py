@@ -30,7 +30,7 @@ def get_jk(jk0=None,z0=None,cfile=None):
         if jk0:
             jk=jk0[0]
         elif z0:
-            jk=libpc.get_k_level(z0,cfile)
+            jk,_=libpc.get_k_level(z0,cfile)
     return jk
 
 def get_var_lst(cvar,cfile):
@@ -84,7 +84,7 @@ def get_argument():
     parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
                                       type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
-                                      type=float, nargs=1  , default=[1.0]     , required=False)
+                                      type=float, nargs="+"  , default=[1.0]     , required=False)
     parser.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , \
                                       type=int  , nargs=1  , required=False)
     parser.add_argument("--mapz"    , metavar='pcolor_z_depth'           , help="depth of the map"               , \
@@ -142,6 +142,8 @@ def get_argument():
                                       type=float, nargs=1  , required=False)
     parser.add_argument("--cntlvl"  , metavar='contour line level'       , help="contour line level"             , \
                                       type=float, nargs="+", required=False)
+    parser.add_argument("--cntrefop", metavar='contour_ref_operation'   , help="operation made for copmarison"  , \
+                                      type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
     parser.add_argument("--bathyf"  , metavar='bathy file'               , help="bathy file"                     , \
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--bathyv"  , metavar='bathy var '               , help="contour variable"               , \
@@ -165,19 +167,23 @@ def def_projection(proj_name):
            'ant'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
                             [(-180, 180, -90, -65),ccrs.PlateCarree()] ],
            'arctic'      :[ ccrs.Stereographic(central_latitude= 90.0, central_longitude=0.0)   , \
-                            [(-180, 180, 60, 90)  ,ccrs.PlateCarree()] ],
+                            [(-180,  180,  60,  90),ccrs.PlateCarree()] ],
            'ross'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
                             [(-6.67e5,8.33e5,1.05e6,2.47e6), 'cproj' ] ],
+           'amundsen'    :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0), \
+                            [( -99, -130, -70, -78),ccrs.PlateCarree()] ],
+           'tip_ant_pen' :[ ccrs.Stereographic(central_latitude= -90.0, central_longitude=0.0)   , \
+                            [ (-3.407e6,-1.69e6,1.012e6,2.71e6),'cproj' ] ],
+                            #[ (-3.307e6,-1.99e6,1.112e6,2.41e6),'cproj' ] ],
            'global'         :[ ccrs.PlateCarree()                    , ['global'] ],
            'global_robinson':[ ccrs.Robinson(central_longitude=0)    , ['global'] ],
-           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ]
+           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ],
+           'natl'      : [ ccrs.LambertConformal(-40, 45,cutoff=20), [(-4.039e6,2.192e6,-1.429e6,4.805e6), 'cproj' ] ],
+           'greenland' : [ ccrs.LambertConformal(-40, 45,cutoff=20), [(-1.124e6,0.897e6,1.648e6,5.198e6), 'cproj' ] ]
           }
 #    elif proj_name=='natl' :
 #        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
 #        XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
-#    elif proj_name=='greenland' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
 #    elif proj_name=='ovf' :
 #        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
 #        XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
@@ -257,7 +263,7 @@ def main():
     cmap, norm = libpc.get_cmap(args.cbn[0],args.cblvl,args.cbnorm[0], cext=cextend)
 
     # get map/cnt scale factor
-    map_sf=args.mapsf[0]
+    map_sf=args.mapsf
     cnt_sf=args.cntsf[0]
 
     # get subplot disposition
@@ -290,21 +296,18 @@ def main():
         else:
             lpltloc[ifile] = gs[ifile//nisplt,ifile%nisplt]
 
-        # deals with mask
-        msk = 1.0
-        if args.mask:
-            cmsk=args.mask[ifile]
-            print('open '+cmsk)
-            msk = libpc.get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
-            msk = np.ma.masked_where(msk==0.0,msk)
-
         # deal with mesh
         if args.mesh:
             cmeshf=get_var_lst(args.mesh,args.mapf)
             cllfile=cmeshf[ifile]
         else:
             cllfile=cmaprunfile[ifile]
-        if (args.llonce[0]==0 or ifile == 0):
+
+        print(ifile,args.llonce[0])
+        if (ifile == 0):
+            lat2d,lon2d=libpc.get_latlon(cllfile,joffset)
+        if (args.llonce[0]==0 and ifile > 0):
+            print('toto')
             lat2d,lon2d=libpc.get_latlon(cllfile,joffset)
 
         # define subplot
@@ -325,8 +328,18 @@ def main():
 
         # add map if ask
         if args.mapf:
-            print('plot pcolormesh ...')
 
+            # deals with mask
+            msk = 1.0
+            if args.mask:
+                cmsk=args.mask[ifile]
+                print('open '+cmsk)
+                mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[ifile])
+                msk = libpc.get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
+                msk = np.ma.masked_where(msk==0.0,msk)
+
+            print('plot pcolormesh ...')
+            mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[ifile])
             mapvar2d  = libpc.get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
             mapvar2dm = np.ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
             if args.mapreff:
@@ -337,10 +350,9 @@ def main():
                 mapref2dm = 0.0
 
             if args.maprefop[0] == '-':
-                maptoplot2d=(mapvar2dm-mapref2dm)*map_sf
+                maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
             elif args.maprefop[0] == '/':
                 maptoplot2d=(mapvar2dm/mapref2dm)
-
             pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
                                         cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
 
@@ -356,12 +368,12 @@ def main():
             else:
                 cntref2dm = 0.0
 
-            if args.mapcntop[0] == '-':
+            if args.cntrefop[0] == '-':
                 cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
             elif args.cntrefop[0] == '/':
                 cnttoplot2d=(cntvar2dm/cntref2dm)
 
-            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot[::ncrs,::ncrs], \
+            ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot2d[::ncrs,::ncrs], \
                               levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
 
         # add bathy line if ask

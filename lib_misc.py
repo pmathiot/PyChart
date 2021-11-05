@@ -292,7 +292,7 @@ def get_latlon(cfile,offsety=None):
 
 def get_variable_shape(ncvar):
     redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
-    redimz=re.compile(r"\b(z|dep|depth|deptht)\b", re.I)
+    redimz=re.compile(r"\b(z|dep|depth|deptht|nav_lev)\b", re.I)
     redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
     redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
     dimlst = ncvar.dimensions
@@ -345,9 +345,8 @@ def get_dims(cfile):
     return nx,ny,nz,nt
 
 # get_2d_data
-def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
+def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
     print(' reading '+cvar+' in '+cfile+' ...')
-
     if (klvl > 0) and (ktime > 0) :
         print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
         sys.exit(42)
@@ -357,6 +356,8 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
         offsety=ny
 
     ncid   = nc.Dataset(cfile)
+    lmask=False
+    ncid.set_auto_maskandscale(lmask)
     clvar   = get_name(cvar,ncid.variables.keys())
     var    = ncid.variables[clvar]
     shape = get_variable_shape(var)
