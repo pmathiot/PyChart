@@ -1,4 +1,4 @@
-# PyChart
+# PyChart toto
 PyChart is a tool to map from netcdf output.
 
 ## Example output
