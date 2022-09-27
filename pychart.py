@@ -8,6 +8,8 @@ import cartopy.crs as ccrs
 
 import lib_misc as libpc
 
+import cmocean as cmo
+
 def sanity_check(args):
     # sanity check
     if args.spfid:
@@ -92,6 +94,7 @@ def get_argument():
 
     parser.add_argument("--cbn"     , metavar='colormap_name'            , help="color map name"                 , \
                                       type=str  , nargs=1  , default=['viridis']   , required=False)
+    parser.add_argument('--cbcmo'   , help='use cmocean colorbar'     , action="store_true", default=False, required=False)
     parser.add_argument("--cblvl"   , metavar='colorbar_range'           , help="color range"                    , \
                                       type=float, nargs="+", required=True )
     parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm)", \
@@ -114,7 +117,7 @@ def get_argument():
     parser.add_argument("--mesh"    , metavar='mesh file name'           , help="mesh file name"                 , \
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--llonce"  , metavar='read lat/lon each time'   , help="read lat/lon for each plot [0=no]", \
-                                      type=int, nargs=1  , default=[1]   , choices=[0, 1]    , required=False)
+                                      type=int, nargs=1  , default=[0]   , choices=[0, 1]    , required=False)
     parser.add_argument("--sp"      , metavar='subplot disposition'      , help="subplot disposition (ixj)"      , \
                                       type=str  , nargs=1  , default=['1x1']   , required=False)
     parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="0,0 : top left plot, 0,: : top line", \
@@ -260,7 +263,7 @@ def main():
 
     # get map colorbar
     cextend=args.cbext[0]
-    cmap, norm = libpc.get_cmap(args.cbn[0],args.cblvl,args.cbnorm[0], cext=cextend)
+    cmap, norm = libpc.get_cmap(args.cbn[0],args.cblvl,args.cbnorm[0], cext=cextend, cmo=args.cbcmo)
 
     # get map/cnt scale factor
     map_sf=args.mapsf

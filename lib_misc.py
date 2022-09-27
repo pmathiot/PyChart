@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+import cmocean
+
 # ============================ output argument list in txt file ================
 def save_output(cfile, fig):
     """
@@ -106,7 +108,7 @@ def get_lvl(bnds):
         lvl=np.array(bnds[:])
     return lvl
 
-def get_cmap(cpal, bnds, cnorm, cext='neither'):
+def get_cmap(cpal, bnds, cnorm, cext='neither', cmo=False):
     """
     define the colormap and the norm to used for pcolormesh
 
@@ -127,7 +129,10 @@ def get_cmap(cpal, bnds, cnorm, cext='neither'):
     ------
     No raise
     """
-    cmap = plt.get_cmap(cpal)
+    if cmo:
+        cmap=eval('cmocean.cm.'+cpal)
+    else:
+        cmap = plt.get_cmap(cpal)
 
     if bnds:
         lvl=get_lvl(bnds)
@@ -228,7 +233,8 @@ def get_subplt_title(args,nplt):
     # build final title
     ctitle=[None]*nplt
     for iplt in range(nplt):
-        ctitle[iplt]=csubplt_title[iplt]+crun_title[iplt]+cref_title[iplt]
+        #ctitle[iplt]=csubplt_title[iplt]+crun_title[iplt]+cref_title[iplt]
+        ctitle[iplt]=crun_title[iplt]+cref_title[iplt]
 
     return ctitle
 
@@ -293,8 +299,8 @@ def get_latlon(cfile,offsety=None):
 def get_variable_shape(ncvar):
     redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
     redimz=re.compile(r"\b(z|dep|depth|deptht|nav_lev)\b", re.I)
-    redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
-    redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
+    redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj|ny)\b", re.I)
+    redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni|nx)\b", re.I)
     dimlst = ncvar.dimensions
     if (len(ncvar.shape)==1) and redimx.match(dimlst[0]):
         cshape='X'
@@ -316,8 +322,8 @@ def get_variable_shape(ncvar):
 
 def get_dim(cfile,cdir):
 
-    dncdim={'x':re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I),
-            'y':re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I),
+    dncdim={'x':re.compile(r"\b(x|nx|x_grid_.+|lon|longitude|long)\b", re.I),
+            'y':re.compile(r"\b(y|ny|y_grid_.+|latitude|lat)\b", re.I),
             'z':re.compile(r"\b(z|dep|depth|deptht)\b", re.I),
             't':re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
            }
