@@ -65,6 +65,8 @@ def def_projection(proj_name):
                             [(-180, 180, 60, 90)  ,ccrs.PlateCarree()] ],
            'ross'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
                             [(-6.67e5,8.33e5,1.05e6,2.47e6), 'cproj' ] ],
+           'ris'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
+                            [(-4.50e5,8.00e5,4.40e5,1.70e6), 'cproj' ] ],
            'pig'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
                             [(  -96, -105, -73.9, -76),ccrs.PlateCarree()] ],
            'amu'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
@@ -220,6 +222,7 @@ def get_latlon(cfile,offsety=None):
     clat,clon=get_latlon_var(cfile)
     lat2d=get_2d_data(cfile,clat,offsety=offsety)
     lon2d=get_2d_data(cfile,clon,offsety=offsety)
+    lon2d[lon2d>=180] = lon2d[lon2d>=180.] - 360.
     delta_lon=np.abs(np.diff(lon2d))
     for i, start in enumerate(np.argmax(delta_lon > 180, axis=1)):
         lon2d[i, start+1:] += 360
@@ -287,14 +290,15 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
         print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
         sys.exit(42)
 
+    nx,ny,_,_=get_dims(cfile)
     if not offsety:
         nx,ny,_,_=get_dims(cfile)
         offsety=ny
 
     ncid   = nc.Dataset(cfile)
-    clvar   = get_name(cvar,ncid.variables.keys())
+    clvar  = get_name(cvar,ncid.variables.keys())
     var    = ncid.variables[clvar]
-    shape = get_variable_shape(var)
+    shape  = get_variable_shape(var)
 
     dslice={
             'XY'  :(                                                  slice(0,offsety,None),slice(0,None,None) ),
@@ -306,11 +310,13 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     if shape=='X' :
         print(' 1d variable X => extend it 2d')
         tmp=np.zeros(shape=(ny,))
-        dat2d,_=np.meshgrid(var[:],tmp)
+        var,_=np.meshgrid(var[:],tmp)
+        dat2d=var[dslice['XY']].squeeze()
     elif shape=='Y' :
         print(' 1d variable Y => extend it 2d')
         tmp=np.zeros(shape=(nx,))
-        _,dat2d=np.meshgrid(tmp,var[:])
+        _,var=np.meshgrid(tmp,var[:])
+        dat2d=var[dslice['XY']].squeeze()
     elif (shape=='XY') or (shape=='XYT') or (shape=='XYZ') or (shape=='XYZT') :
         dat2d=var[dslice[shape]].squeeze()
     else:
