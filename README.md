@@ -1,5 +1,5 @@
-# PyChart
-PyChart is a tool to map from netcdf output
+# PyChart toto
+PyChart is a tool to map from netcdf output.
 
 ## Example output
 Below you can find an exemple of the kind of output from PyChart:
