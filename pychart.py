@@ -266,8 +266,8 @@ def main():
         if args.mask:
             cmsk=args.mask[ifile]
             print('open '+cmsk)
-            #msk = libpc.get_2d_data(cmsk,'tmaskutil',klvl=mapjk,offsety=joffset)
-            msk = libpc.get_2d_data(cmsk,'tmaskutil',offsety=joffset)
+            msk = libpc.get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
+            #msk = libpc.get_2d_data(cmsk,'tmaskutil',offsety=joffset)
             msk = np.ma.masked_where(msk==0.0,msk)
 
         # deal with mesh
@@ -305,7 +305,6 @@ def main():
 
         # add map if ask
         if args.mapf:
-            print('plot pcolormesh ...')
 
             mapvar2d  = libpc.get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],ktime=mapkt[ifile]-1,klvl=mapjk,offsety=joffset)
             mapvar2dm = np.ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
@@ -314,8 +313,15 @@ def main():
                 print(ifile,cmapreffile,cmaprefvar)
                 mapref2d=libpc.get_2d_data(cmapreffile[ifile],cmaprefvar[ifile],ktime=maprefkt[0]-1,klvl=mapjk,offsety=joffset)
                 mapref2dm = np.ma.masked_where(msk*mapref2d==0.0,mapref2d)
+                if args.maprefop[0] == '-':
+                    print('operation is -')
+                    maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
+                elif args.maprefop[0] == '/':
+                    print('operation is /')
+                    maptoplot2d=(mapvar2dm/mapref2dm)
             else:
-                mapref2dm = 0.0
+                #mapref2dm = 0.0
+                maptoplot2d = mapvar2dm*map_sf[ifile]
 
             print('compute map to plot')
             if args.maprefop[0] == '-':
@@ -325,6 +331,7 @@ def main():
                 print('operation is /')
                 maptoplot2d=((mapvar2dm*map_sf[ifile])/(mapref2dm*mapref_sf[ifile]))
           
+            print('plot pcolormesh ...')
             if args.debug :
                 pcol = ax[ifile].pcolormesh(maptoplot2d[::ncrs,::ncrs], cmap=mapcb.cmap, norm=mapcb.norm, rasterized=True, )
                 ax[ifile].grid()
@@ -335,7 +342,6 @@ def main():
 
         # add contour if ask
         if args.cntf:
-            print('plot contour ...')
             # need to be simplify as same code as map (input runf,runv,reff,refv,jk,offset,msk,cnt_sf)
             cntvar2d  = libpc.get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
             lcntmsk=False
@@ -347,14 +353,15 @@ def main():
             if args.cntreff:
                 cntref2d=libpc.get_2d_data(ccntreffile[ifile],ccntrefvar[ifile],klvl=cntjk,offsety=joffset)
                 cntref2dm = np.ma.masked_where(msk*cntref2d==0.0,cntref2d)
+                if args.cntrefop[0] == '-':
+                    cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
+                elif args.cntrefop[0] == '/':
+                    cnttoplot2d=(cntvar2dm/cntref2dm)
             else:
-                cntref2dm = 0.0
+                #cntref2dm = 0.0
+                cnttoplot2d = cntvar2dm * cnt_sf
 
-            if args.cntrefop[0] == '-':
-                cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
-            elif args.cntrefop[0] == '/':
-                cnttoplot2d=(cntvar2dm/cntref2dm)
-
+            print('plot contour ...')
             ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot2d[::ncrs,::ncrs], \
                               levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
 
