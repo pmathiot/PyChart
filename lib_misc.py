@@ -30,6 +30,7 @@ def save_output(cfile, fig):
     """
 
     # save argument list
+    print(cfile)
     fid = open(cfile+'.txt',"w")
     fid.write(' python '+subprocess.list2cmdline(sys.argv[0:])+'\n')
     fid.close()
@@ -41,8 +42,10 @@ def save_output(cfile, fig):
 def add_land_features(ax,cfeature_lst):
     dfeature={'isf':cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m', facecolor='none'),
               'lakes':cartopy.feature.NaturalEarthFeature('physical', 'lakes'                    , '50m', facecolor='none'),
-              'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='0.75'),
-              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='0.75'),
+              'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='none'),
+              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='none'),
+#              'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='0.75'),
+#              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='0.75'),
               'bathy_z1000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'  , '10m', facecolor='none'),
               'bathy_z2000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_I_2000'  , '10m', facecolor='none'),
               'bathy_z3000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_H_3000'  , '10m', facecolor='none')
@@ -65,8 +68,12 @@ def def_projection(proj_name):
                             [(-180, 180, 60, 90)  ,ccrs.PlateCarree()] ],
            'ross'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
                             [(-6.67e5,8.33e5,1.05e6,2.47e6), 'cproj' ] ],
+           'fris'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0), \
+                            [(-1.718e6,-4.114e5,1.259e5,1.411e6), 'cproj' ] ],
            'pig'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
                             [(  -96, -105, -73.9, -76),ccrs.PlateCarree()] ],
+           'ispig'       :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-1.756e6, -1.342e6, -5.439e5, -1.299e5), 'cproj' ] ],
            'amu'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
                             [(  -99, -130, -70, -78),ccrs.PlateCarree()] ], 
            'global'         :[ ccrs.PlateCarree()                    , ['global'] ],
@@ -166,7 +173,7 @@ def get_subplt_title(args,nplt):
     # supplot title prefix
     csubplt_title=['']
     if nplt > 1:
-        csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
+        csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ','g) ','h) ']
 
     # get title list for each subplot
     if args.spfid:
