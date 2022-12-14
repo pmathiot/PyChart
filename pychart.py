@@ -2,6 +2,8 @@
 import sys
 import argparse
 
+import matplotlib
+matplotlib.use('TkAgg')
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
@@ -82,12 +84,18 @@ def get_argument():
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--maprefv" , metavar='pcolor_ref_var_name'      , help="reference variable name"        , \
                                       type=str  , nargs="+", required=False)
+    parser.add_argument("--maprefjt"   , metavar='pcolor_jt_ref_file'    , help="time frame in fortran convention", \
+                                      type=int  , nargs='+'  , default=[1], required=False)
     parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
                                       type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
+    parser.add_argument("--maprefsf", metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
+                                      type=float, nargs='+', required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
                                       type=float, nargs='+', required=False)
     parser.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , \
                                       type=int  , nargs=1  , required=False)
+    parser.add_argument("--mapjt"   , metavar='pcolor_jt'                , help="time frame in fortran convention", \
+                                      type=int  , nargs='+'  , default=[1], required=False)
     parser.add_argument("--mapz"    , metavar='pcolor_z_depth'           , help="depth of the map"               , \
                                       type=float, nargs=1  , required=False)
 
@@ -184,9 +192,11 @@ def main():
     if args.mapf:
         cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
         mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
+        mapkt=args.mapjt[:]
 
         if args.mapreff:
             cmapreffile,cmaprefvar=get_file_and_varname(args.dir[0],args.mapreff[:],args.maprefv[:])
+            maprefkt=args.maprefjt
 
     if args.cntf:
         # get file
@@ -223,6 +233,11 @@ def main():
         map_sf=[1.0]*nplt
     cnt_sf=args.cntsf[0]
 
+    if args.maprefsf:
+        mapref_sf=args.maprefsf[:]
+    else:
+        mapref_sf=[1.0]*nplt
+ 
     # title list
     csptitle = libpc.get_subplt_title(args,nplt)
 
@@ -292,11 +307,12 @@ def main():
         if args.mapf:
             print('plot pcolormesh ...')
 
-            mapvar2d  = libpc.get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
+            mapvar2d  = libpc.get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],ktime=mapkt[ifile]-1,klvl=mapjk,offsety=joffset)
             mapvar2dm = np.ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
             if args.mapreff:
                 # def file list
-                mapref2d=libpc.get_2d_data(cmapreffile[ifile],cmaprefvar[ifile],klvl=mapjk,offsety=joffset)
+                print(ifile,cmapreffile,cmaprefvar)
+                mapref2d=libpc.get_2d_data(cmapreffile[ifile],cmaprefvar[ifile],ktime=maprefkt[0]-1,klvl=mapjk,offsety=joffset)
                 mapref2dm = np.ma.masked_where(msk*mapref2d==0.0,mapref2d)
             else:
                 mapref2dm = 0.0
@@ -304,15 +320,16 @@ def main():
             print('compute map to plot')
             if args.maprefop[0] == '-':
                 print('operation is -')
-                maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
+                maptoplot2d=(mapvar2dm*map_sf[ifile]-mapref2dm*mapref_sf[ifile])
             elif args.maprefop[0] == '/':
                 print('operation is /')
-                maptoplot2d=(mapvar2dm/mapref2dm)
+                maptoplot2d=((mapvar2dm*map_sf[ifile])/(mapref2dm*mapref_sf[ifile]))
           
             if args.debug :
                 pcol = ax[ifile].pcolormesh(maptoplot2d[::ncrs,::ncrs], cmap=mapcb.cmap, norm=mapcb.norm, rasterized=True, )
                 ax[ifile].grid()
             else:
+                print(lon2d[::ncrs,::ncrs].shape,lat2d[::ncrs,::ncrs].shape,maptoplot2d[::ncrs,::ncrs].shape)
                 pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
                                             cmap=mapcb.cmap,norm=mapcb.norm,transform=ccrs.PlateCarree(),rasterized=True)
 
@@ -379,7 +396,7 @@ def main():
     libpc.save_output(args.o[0],fig)
 
     # show figure
-    plt.show()
+    #plt.show()
 
 if __name__ == '__main__':
     main()
