@@ -320,7 +320,7 @@ def main():
                     print('operation is /')
                     maptoplot2d=(mapvar2dm/mapref2dm)
             else:
-                #mapref2dm = 0.0
+                mapref2dm = 0.0
                 maptoplot2d = mapvar2dm*map_sf[ifile]
 
             print('compute map to plot')
