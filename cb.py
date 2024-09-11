@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+import cmocean
+
 # ============================ CMAP ====================================
 
 class cb:
@@ -21,7 +23,7 @@ class cb:
         add a colorbar to the plot
     """
 
-    def __init__(self,cmap,cnorm,cunit,cfmt,cext,lvls):
+    def __init__(self,cmap,cnorm,cunit,cfmt,cext,lvls,cmo=False):
         self._unit=cunit
         self._fmt=cfmt
         self._ext=cext
@@ -31,7 +33,12 @@ class cb:
         else:
             self._lvls=get_lvl(lvls)
 
-        self.cmap = plt.get_cmap(cmap)
+        print(cmap,cnorm)
+        if cmo:
+            self.cmap=eval(cmap)
+        else:
+            self.cmap = plt.get_cmap(cmap)
+
         self.norm = self._compute_norm(cnorm)
 
     @property

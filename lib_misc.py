@@ -44,8 +44,6 @@ def add_land_features(ax,cfeature_lst):
               'lakes':cartopy.feature.NaturalEarthFeature('physical', 'lakes'                    , '50m', facecolor='none'),
               'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='none'),
               'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='none'),
-#              'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='0.75'),
-#              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='0.75'),
               'bathy_z1000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'  , '10m', facecolor='none'),
               'bathy_z2000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_I_2000'  , '10m', facecolor='none'),
               'bathy_z3000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_H_3000'  , '10m', facecolor='none')
@@ -80,7 +78,9 @@ def def_projection(proj_name):
                             [(  -99, -130, -70, -78),ccrs.PlateCarree()] ], 
            'global'         :[ ccrs.PlateCarree()                    , ['global'] ],
            'global_robinson':[ ccrs.Robinson(central_longitude=0)    , ['global'] ],
-           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ]
+           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ],
+           'greenland'   :[ ccrs.LambertConformal(-40, 45,cutoff=20) , \
+                            [(-1.124e6,0.897e6,1.648e6,5.198e6), 'cproj' ] ]
           }
 #    elif proj_name=='natl' :
 #        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
@@ -236,7 +236,7 @@ def get_latlon(cfile,offsety=None):
     return lat2d,lon2d
 
 def get_variable_shape(ncvar):
-    redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
+    redimt=re.compile(r"\b(t|tim|time_counter|time|time_instant)\b", re.I)
     redimz=re.compile(r"\b(z|dep|depth|deptht|nav_lev)\b", re.I)
     redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
     redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
@@ -255,7 +255,7 @@ def get_variable_shape(ncvar):
         cshape='XYZT'
     else:
         print('cshape undefined, error')
-        print(dimlst)
+        print(dimlst,len(ncvar.shape),redimx.match(dimlst[2]),redimy.match(dimlst[1]),redimt.match(dimlst[0]))
         sys.exit(42)
     return cshape
 
@@ -292,6 +292,7 @@ def get_dims(cfile):
 # get_2d_data
 def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
     print(' reading '+cvar+' in '+cfile+' ...')
+    print(klvl, ktime)
 
     if (klvl > 0) and (ktime > 0) :
         print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')

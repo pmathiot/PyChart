@@ -11,6 +11,7 @@ import cartopy.crs as ccrs
 import lib_misc as libpc
 import cb
 
+
 def sanity_check(args):
     # sanity check
     if args.spfid:
@@ -33,7 +34,8 @@ def get_jk(jk0=None,z0=None,cfile=None):
         if jk0:
             jk=jk0[0]
         elif z0:
-            jk=libpc.get_k_level(z0,cfile)
+            jk,zk=libpc.get_k_level(z0,cfile)
+            print('level used is {} at depth {}'.format(jk,zk))
     return jk
 
 def get_var_lst(cvar,cfile):
@@ -101,6 +103,7 @@ def get_argument():
 
     parser.add_argument("--cbn"     , metavar='colormap_name'            , help="color map name"                 , \
                                       type=str  , nargs=1  , default=['viridis']   , required=False)
+    parser.add_argument('--cbcmo'   , help='use cmocean colorbar'     , action="store_true", default=False, required=False)
     parser.add_argument("--cblvl"   , metavar='colorbar_range'           , help="color range"                    , \
                                       type=float, nargs="+", required=True )
     parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm, TwoSlopeNorm)", \
@@ -217,7 +220,7 @@ def main():
                 cntclr[ii]='k'
 
     # get map colorbar
-    mapcb=cb.cb(args.cbn[0],args.cbnorm[0],args.cbu[0],args.cbfmt[0],args.cbext[0],args.cblvl)
+    mapcb=cb.cb(args.cbn[0],args.cbnorm[0],args.cbu[0],args.cbfmt[0],args.cbext[0],args.cblvl,cmo=args.cbcmo)
 
     # get subplot disposition
     if args.mapf:
@@ -336,7 +339,8 @@ def main():
                 pcol = ax[ifile].pcolormesh(maptoplot2d[::ncrs,::ncrs], cmap=mapcb.cmap, norm=mapcb.norm, rasterized=True, )
                 ax[ifile].grid()
             else:
-                print(lon2d[::ncrs,::ncrs].shape,lat2d[::ncrs,::ncrs].shape,maptoplot2d[::ncrs,::ncrs].shape)
+                print(lon2d[::ncrs,::ncrs].shape,lat2d[::ncrs,::ncrs].shape,maptoplot2d[::ncrs,::ncrs].squeeze().shape)
+                print(mapcb.cmap,mapcb.norm)
                 pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
                                             cmap=mapcb.cmap,norm=mapcb.norm,transform=ccrs.PlateCarree(),rasterized=True)
 
@@ -362,6 +366,7 @@ def main():
                 cnttoplot2d = cntvar2dm * cnt_sf
 
             print('plot contour ...')
+            print(cntlvl)
             ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot2d[::ncrs,::ncrs], \
                               levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
 
