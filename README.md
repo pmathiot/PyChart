@@ -200,8 +200,3 @@ optional arguments:
                         section file list describing section to plot
 ```
 
-
-
-
-
-
