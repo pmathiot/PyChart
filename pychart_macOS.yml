@@ -1,0 +1,14 @@
+name: pychart
+channels:
+  - defaults
+dependencies:
+  - python=3.7.4
+  - cartopy
+  - numpy
+  - matplotlib
+  - netcdf4
+  - pytest
+  - pylint
+  - pip
+  - pip:
+     seawater

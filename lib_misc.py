@@ -1,5 +1,4 @@
 import re
-import seawater
 import cartopy
 import subprocess
 import sys
@@ -33,6 +32,7 @@ def save_output(cfile, fig):
     """
 
     # save argument list
+    print(cfile)
     fid = open(cfile+'.txt',"w")
     fid.write(' python '+subprocess.list2cmdline(sys.argv[0:])+'\n')
     fid.close()
@@ -40,30 +40,12 @@ def save_output(cfile, fig):
     # save figure
     fig.savefig(cfile+'.png', format='png', dpi=150)
 
-# ============================ file parser =====================================
-def parse_dbfile(cfile,key_lst):
-    print('open file '+cfile)
-    val_lst=[None]*len(key_lst)
-    with open(cfile) as fid:
-        for ikey,ckey in enumerate(key_lst):
-            val_lst[ikey]=find_key(ckey,fid)
-    # return value
-    return val_lst
-
-def find_key(char,fid):
-    for cline in fid:
-        lmatch = re.findall(char,cline)
-        if lmatch :
-            return re.split(' *= *| *',cline.strip().strip('\n'))[-1]
-    return 'N/A'
-# ============================ file parser end =====================================
-
 # ============================ plot utility ========================================
 def add_land_features(ax,cfeature_lst):
     dfeature={'isf':cartopy.feature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m', facecolor='none'),
               'lakes':cartopy.feature.NaturalEarthFeature('physical', 'lakes'                    , '50m', facecolor='none'),
-              'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='0.75'),
-              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='0.75'),
+              'coast':cartopy.feature.NaturalEarthFeature('physical', 'coastline'                , '50m', facecolor='none'),
+              'land' :cartopy.feature.NaturalEarthFeature('physical', 'land'                     , '50m', facecolor='none'),
               'bathy_z1000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_J_1000'  , '10m', facecolor='none'),
               'bathy_z2000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_I_2000'  , '10m', facecolor='none'),
               'bathy_z3000':cartopy.feature.NaturalEarthFeature('physical', 'bathymetry_H_3000'  , '10m', facecolor='none')
@@ -72,6 +54,73 @@ def add_land_features(ax,cfeature_lst):
     for _,cfeat in enumerate(cfeature_lst):
         ax.add_feature(dfeature[cfeat],linewidth=0.5,edgecolor='k')
 
+def def_projection(proj_name):
+    dproj={
+           'ortho_natl'  :[ ccrs.Orthographic(central_longitude=-60.0, central_latitude=45.0)   , \
+                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
+           'south_stereo':[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
+           'south_ocean' :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-180, 180, -90, -45),ccrs.PlateCarree()] ],
+           'ant'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-180, 180, -90, -65),ccrs.PlateCarree()] ],
+           'arctic'      :[ ccrs.Stereographic(central_latitude= 90.0, central_longitude=0.0)   , \
+                            [(-180, 180, 60, 90)  ,ccrs.PlateCarree()] ],
+           'ross'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
+                            [(-6.67e5,8.33e5,1.05e6,2.47e6), 'cproj' ] ],
+           'fris'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0), \
+                            [(-1.718e6,-4.114e5,1.259e5,1.411e6), 'cproj' ] ],
+           'ris'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
+                            [(-4.50e5,8.00e5,4.40e5,1.70e6), 'cproj' ] ],
+           'pig'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(  -96, -105, -73.9, -76),ccrs.PlateCarree()] ],
+           'ispig'       :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(-1.756e6, -1.342e6, -5.439e5, -1.299e5), 'cproj' ] ],
+           'amu'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
+                            [(  -99, -130, -70, -78),ccrs.PlateCarree()] ], 
+           'global'         :[ ccrs.PlateCarree()                    , ['global'] ],
+           'global_robinson':[ ccrs.Robinson(central_longitude=0)    , ['global'] ],
+           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ],
+           'greenland'   :[ ccrs.LambertConformal(-40, 45,cutoff=20) , \
+                            [(-1.124e6,0.897e6,1.648e6,5.198e6), 'cproj' ] ]
+          }
+#    elif proj_name=='natl' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
+#    elif proj_name=='greenland' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-1.124e6,0.897e6,1.648e6,5.198e6]
+#    elif proj_name=='ovf' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
+#    elif proj_name=='ovf_larger' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-2.5e5,2.45e6,0.9e6,3.6e6]
+#    elif proj_name=='irminger' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[-2.164e5,1.395e6,1.635e6,3.265e6]
+#    elif proj_name=='japan' :
+#        proj=ccrs.LambertConformal(150, 30,cutoff=10)
+#        XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
+#    elif proj_name=='feroe' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
+#    elif proj_name=='gulf_stream' :
+#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
+#        XY_lim=[(-4.250e6,1.115e5,-1.546e6,2.8155e6), proj]
+#    else:
+#        print('projection '+proj_name+' unknown')
+#        print('should be ross, gulf_stream, feroe, global_mercator, global_robinson, japan'
+#              ', ovf, greenland, natl, global, south_stereo, ant')
+#        sys.exit(42)
+
+    proj=dproj[proj_name][0]
+
+    XY_lim=dproj[proj_name][1]
+    if XY_lim[-1]=='cproj':
+        XY_lim[-1]=proj
+
+    return proj, XY_lim
 # ============================ CMAP ====================================
 def get_lvl(bnds):
     """
@@ -171,14 +220,6 @@ def get_corner(ax):
     box=ax.get_position()
     return [box.x0,box.x1,box.y0,box.y1]
 
-def add_legend(lh,ll,ncol=4,lframe=False,loc='bottom'):
-    if loc=='bottom':
-        lax=plt.axes([0.0, 0.0, 1.0, 0.05])
-    else:
-        print('legend location not yet supported, supported location are: bottom,')
-    plt.legend(lh,ll,loc='center left',ncol=ncol,frameon=lframe,columnspacing=1)
-    lax.set_axis_off()
-
 # ======================= COLORBAR =======================================
 def get_plt_bound(ax_lst,nplt):
     """
@@ -207,18 +248,12 @@ def get_plt_bound(ax_lst,nplt):
         y1=np.max([y1,box[3]])
     return [x0, y0, x1, y1]
 
-def add_colorbar(cb,boxxy,cunit='',cfmt='%5.2f',cext='neither',fontsize=16,cboffset=0.02,cbw=0.02):
-    cax  = plt.axes([boxxy[2]+cboffset, boxxy[1], cbw, boxxy[3]-boxxy[1]])
-    cbar = plt.colorbar(cb, cax=cax, format=cfmt,extend=cext)
-    cbar.ax.tick_params(labelsize=fontsize)
-    cbar.ax.set_title(cunit,fontsize=fontsize,y=1.0)
-
 # ======================= TITLE =======================================
 def get_subplt_title(args,nplt):
     # supplot title prefix
     csubplt_title=['']
     if nplt > 1:
-        csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ']
+        csubplt_title=['a) ','b) ','c) ','d) ','e) ','f) ','g) ','h) ']
 
     # get title list for each subplot
     if args.spfid:
@@ -242,24 +277,6 @@ def add_title(ctitle,boxxy):
     cax  = plt.axes([boxxy[0], boxxy[3], boxxy[2]-boxxy[0], 1-boxxy[3]])
     cax.text(0.5,0.5,ctitle,horizontalalignment='center',verticalalignment='bottom',fontsize=20)
     cax.axis('off')
-
-# ======================= TS diag ====================================
-def plot_s0_line(tmin,smin,tmax,smax,siglvl=[27.88, 27.8, 27.68, 27.55]):
-# Create empty grid of zeros
-    ydim=xdim=100
-    dens = np.zeros((ydim,xdim))
-# Create temp and salt vectors of appropiate dimensions
-    ti = np.linspace(tmin,tmax,ydim)
-    si = np.linspace(smin,smax,xdim)
-# Loop to fill in grid with densities
-    for j in range(0,int(ydim)):
-        for i in range(0, int(xdim)):
-            dens[j,i]=seawater.dens0(si[i],ti[j])
-# Substract 1000 to convert to sigma-t
-    dens = dens - 1000
-# Plot data ***********************************************
-    CS = plt.contour(si, ti, dens, levels=siglvl, linestyles='dashed', colors='k')
-    plt.clabel(CS, fontsize=12, inline=1, fmt='%4.2f', inline_spacing=1, use_clabeltext=1) # Label every second level
 
 # ================================ extra information on plot =============
 def plot_section_line(fig,cfile_lst):
@@ -291,6 +308,7 @@ def get_latlon(cfile,offsety=None):
     clat,clon=get_latlon_var(cfile)
     lat2d=get_2d_data(cfile,clat,offsety=offsety)
     lon2d=get_2d_data(cfile,clon,offsety=offsety)
+    lon2d[lon2d>=180] = lon2d[lon2d>=180.] - 360.
     delta_lon=np.abs(np.diff(lon2d))
     for i, start in enumerate(np.argmax(delta_lon > 180, axis=1)):
         lon2d[i, start+1:] += 360
@@ -316,7 +334,7 @@ def get_variable_shape(ncvar):
         cshape='XYZT'
     else:
         print('cshape undefined, error')
-        print(dimlst)
+        print(dimlst,len(ncvar.shape),redimx.match(dimlst[2]),redimy.match(dimlst[1]),redimt.match(dimlst[0]))
         sys.exit(42)
     return cshape
 
@@ -357,6 +375,7 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
         print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
         sys.exit(42)
 
+    nx,ny,_,_=get_dims(cfile)
     if not offsety:
         nx,ny,_,_=get_dims(cfile)
         offsety=ny
@@ -366,7 +385,7 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
     ncid.set_auto_maskandscale(lmask)
     clvar   = get_name(cvar,ncid.variables.keys())
     var    = ncid.variables[clvar]
-    shape = get_variable_shape(var)
+    shape  = get_variable_shape(var)
 
     dslice={
             'XY'  :(                                                  slice(0,offsety,None),slice(0,None,None) ),
@@ -378,11 +397,13 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
     if shape=='X' :
         print(' 1d variable X => extend it 2d')
         tmp=np.zeros(shape=(ny,))
-        dat2d,_=np.meshgrid(var[:],tmp)
+        var,_=np.meshgrid(var[:],tmp)
+        dat2d=var[dslice['XY']].squeeze()
     elif shape=='Y' :
         print(' 1d variable Y => extend it 2d')
         tmp=np.zeros(shape=(nx,))
-        _,dat2d=np.meshgrid(tmp,var[:])
+        _,var=np.meshgrid(tmp,var[:])
+        dat2d=var[dslice['XY']].squeeze()
     elif (shape=='XY') or (shape=='XYT') or (shape=='XYZ') or (shape=='XYZT') :
         dat2d=var[dslice[shape]].squeeze()
     else:

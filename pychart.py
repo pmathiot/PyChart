@@ -2,11 +2,15 @@
 import sys
 import argparse
 
+import matplotlib
+matplotlib.use('TkAgg')
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 
 import lib_misc as libpc
+import cb
+
 
 import cmocean as cmo
 
@@ -32,7 +36,8 @@ def get_jk(jk0=None,z0=None,cfile=None):
         if jk0:
             jk=jk0[0]
         elif z0:
-            jk,_=libpc.get_k_level(z0,cfile)
+            jk,zk=libpc.get_k_level(z0,cfile)
+            print('level used is {} at depth {}'.format(jk,zk))
     return jk
 
 def get_var_lst(cvar,cfile):
@@ -83,12 +88,18 @@ def get_argument():
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--maprefv" , metavar='pcolor_ref_var_name'      , help="reference variable name"        , \
                                       type=str  , nargs="+", required=False)
+    parser.add_argument("--maprefjt"   , metavar='pcolor_jt_ref_file'    , help="time frame in fortran convention", \
+                                      type=int  , nargs='+'  , default=[1], required=False)
     parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
                                       type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
+    parser.add_argument("--maprefsf", metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
+                                      type=float, nargs='+', required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
                                       type=float, nargs="+"  , default=[1.0]     , required=False)
     parser.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , \
                                       type=int  , nargs=1  , required=False)
+    parser.add_argument("--mapjt"   , metavar='pcolor_jt'                , help="time frame in fortran convention", \
+                                      type=int  , nargs='+'  , default=[1], required=False)
     parser.add_argument("--mapz"    , metavar='pcolor_z_depth'           , help="depth of the map"               , \
                                       type=float, nargs=1  , required=False)
 
@@ -97,8 +108,8 @@ def get_argument():
     parser.add_argument('--cbcmo'   , help='use cmocean colorbar'     , action="store_true", default=False, required=False)
     parser.add_argument("--cblvl"   , metavar='colorbar_range'           , help="color range"                    , \
                                       type=float, nargs="+", required=True )
-    parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm)", \
-                                      type=str, nargs=1, default=['BoundaryNorm'], choices=['BoundaryNorm','LogNorm','Normalize'], required=False )
+    parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm, TwoSlopeNorm)", \
+                                      type=str, nargs=1, default=['BoundaryNorm'], choices=['BoundaryNorm','LogNorm','Normalize','TwoSlopeNorm'], required=False )
     parser.add_argument("--cbu"     , metavar='colorbar_unit'            , help="colorbar unit"                  , \
                                       type=str  , nargs=1  , default=['']      , required=False)
     parser.add_argument("--cbfmt"   , metavar='colorbar_fmt'             , help="colorbar format"                , \
@@ -128,6 +139,8 @@ def get_argument():
                                       type=str  , nargs=1  , default=['global'], required=False)
     parser.add_argument("--crs"     , metavar='sampling value'           , help="sampling value (every ncrs pts)", \
                                       type=int  , nargs=1  , default=[1],        required=False)
+    parser.add_argument("--debug"   , metavar='box index [imin, imax, jmin, jmax]', help=" box index [imin, imax, jmin, jmax]", \
+                                      type=int  , nargs=4  , required=False)
 
     parser.add_argument("--cntf"    , metavar='contour file'             , help="contour file list"              , \
                                       type=str  , nargs="+", required=False)
@@ -137,6 +150,8 @@ def get_argument():
                                       type=str  , nargs=1  , required=False)
     parser.add_argument("--cntrefv" , metavar='contour ref var '         , help="contour reference variable"     , \
                                       type=str  , nargs=1  , required=False)
+    parser.add_argument("--cntrefop", metavar='contour_ref_operation'     , help="operation made for comparison"  , \
+                                      type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
     parser.add_argument("--cntsf"   , metavar='contour data scale factor', help="contour data scale factor"      , \
                                       type=float, nargs=1  , default=[1.0]    , required=False)
     parser.add_argument("--cntjk"   , metavar='contour jk level'         , help="contour jk level "              , \
@@ -159,65 +174,6 @@ def get_argument():
                                       type=int  , nargs=1  , default=[0],required=False)
     return parser.parse_args()
 
-def def_projection(proj_name):
-    dproj={
-           'ortho_natl'  :[ ccrs.Orthographic(central_longitude=-60.0, central_latitude=45.0)   , \
-                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
-           'south_stereo':[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
-                            [(-180, 180, -90, -60),ccrs.PlateCarree()] ],
-           'south_ocean' :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
-                            [(-180, 180, -90, -45),ccrs.PlateCarree()] ],
-           'ant'         :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0)   , \
-                            [(-180, 180, -90, -65),ccrs.PlateCarree()] ],
-           'arctic'      :[ ccrs.Stereographic(central_latitude= 90.0, central_longitude=0.0)   , \
-                            [(-180,  180,  60,  90),ccrs.PlateCarree()] ],
-           'ross'        :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=-180.0), \
-                            [(-6.67e5,8.33e5,1.05e6,2.47e6), 'cproj' ] ],
-           'amundsen'    :[ ccrs.Stereographic(central_latitude=-90.0, central_longitude=0.0), \
-                            [( -99, -130, -70, -78),ccrs.PlateCarree()] ],
-           'tip_ant_pen' :[ ccrs.Stereographic(central_latitude= -90.0, central_longitude=0.0)   , \
-                            [ (-3.407e6,-1.69e6,1.012e6,2.71e6),'cproj' ] ],
-                            #[ (-3.307e6,-1.99e6,1.112e6,2.41e6),'cproj' ] ],
-           'global'         :[ ccrs.PlateCarree()                    , ['global'] ],
-           'global_robinson':[ ccrs.Robinson(central_longitude=0)    , ['global'] ],
-           'global_mercator':[ ccrs.Mercator(central_longitude=-90.0), ['global'] ],
-           'natl'      : [ ccrs.LambertConformal(-40, 45,cutoff=20), [(-4.039e6,2.192e6,-1.429e6,4.805e6), 'cproj' ] ],
-           'greenland' : [ ccrs.LambertConformal(-40, 45,cutoff=20), [(-1.124e6,0.897e6,1.648e6,5.198e6), 'cproj' ] ]
-          }
-#    elif proj_name=='natl' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-4.039e6,2.192e6,-1.429e6,4.805e6]
-#    elif proj_name=='ovf' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-3.553e5,2.141e6,9.915e5,3.4113e6]
-#    elif proj_name=='ovf_larger' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-2.5e5,2.45e6,0.9e6,3.6e6]
-#    elif proj_name=='irminger' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[-2.164e5,1.395e6,1.635e6,3.265e6]
-#    elif proj_name=='japan' :
-#        proj=ccrs.LambertConformal(150, 30,cutoff=10)
-#        XY_lim=[-3.166e6,2.707e6,-1.008e6,4.865e6]
-#    elif proj_name=='feroe' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[1.56e6,2.145e6,1.973e6,2.555e6]
-#    elif proj_name=='gulf_stream' :
-#        proj=ccrs.LambertConformal(-40, 45,cutoff=20)
-#        XY_lim=[(-4.250e6,1.115e5,-1.546e6,2.8155e6), proj]
-#    else:
-#        print('projection '+proj_name+' unknown')
-#        print('should be ross, gulf_stream, feroe, global_mercator, global_robinson, japan'
-#              ', ovf, greenland, natl, global, south_stereo, ant')
-#        sys.exit(42)
-
-    proj=dproj[proj_name][0]
-
-    XY_lim=dproj[proj_name][1]
-    if XY_lim[-1]=='cproj':
-        XY_lim[-1]=proj
-
-    return proj, XY_lim
 # =======================================================================================================================================================
 
 def main():
@@ -228,7 +184,11 @@ def main():
     sanity_check(args)
 
     # get projection and extend
-    proj, XY_lim = def_projection(args.p[0])
+    if args.debug:
+        proj=None
+        XY_lim = [ tuple(args.debug), 'pxl' ]
+    else:
+        proj, XY_lim = libpc.def_projection(args.p[0])
 
     # deals with ref file
     mapref2d=0.0
@@ -239,9 +199,11 @@ def main():
     if args.mapf:
         cmaprunfile,cmaprunvar=get_file_and_varname(args.dir[0],args.mapf[:],args.mapv[:])
         mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[0])
+        mapkt=args.mapjt[:]
 
         if args.mapreff:
             cmapreffile,cmaprefvar=get_file_and_varname(args.dir[0],args.mapreff[:],args.maprefv[:])
+            maprefkt=args.maprefjt
 
     if args.cntf:
         # get file
@@ -253,7 +215,7 @@ def main():
 
     # define contour lvl
     if args.cntf:
-        cntlvl=libpc.get_lvl(args.cntlvl)
+        cntlvl=cb.get_lvl(args.cntlvl)
         cntclr=[None]*len(cntlvl)
         for ii, val in enumerate(cntlvl):
             if val<0:
@@ -262,12 +224,7 @@ def main():
                 cntclr[ii]='k'
 
     # get map colorbar
-    cextend=args.cbext[0]
-    cmap, norm = libpc.get_cmap(args.cbn[0],args.cblvl,args.cbnorm[0], cext=cextend, cmo=args.cbcmo)
-
-    # get map/cnt scale factor
-    map_sf=args.mapsf
-    cnt_sf=args.cntsf[0]
+    mapcb=cb.cb(args.cbn[0],args.cbnorm[0],args.cbu[0],args.cbfmt[0],args.cbext[0],args.cblvl,cmo=args.cbcmo)
 
     # get subplot disposition
     if args.mapf:
@@ -276,6 +233,18 @@ def main():
         nplt=len(ccntrunfile)
     nisplt,njsplt = get_subplot(args.sp[0],nplt)
 
+    # get map/cnt scale factor
+    if args.mapsf:
+        map_sf=args.mapsf[:]
+    else:
+        map_sf=[1.0]*nplt
+    cnt_sf=args.cntsf[0]
+
+    if args.maprefsf:
+        mapref_sf=args.maprefsf[:]
+    else:
+        mapref_sf=[1.0]*nplt
+ 
     # title list
     csptitle = libpc.get_subplt_title(args,nplt)
 
@@ -299,31 +268,43 @@ def main():
         else:
             lpltloc[ifile] = gs[ifile//nisplt,ifile%nisplt]
 
-        # deal with mesh
-        if args.mesh:
-            cmeshf=get_var_lst(args.mesh,args.mapf)
-            cllfile=cmeshf[ifile]
-        else:
-            cllfile=cmaprunfile[ifile]
+        # deals with mask
+        msk = 1.0
+        if args.mask:
+            cmsk=args.mask[ifile]
+            print('open '+cmsk)
+            msk = libpc.get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
+            #msk = libpc.get_2d_data(cmsk,'tmaskutil',offsety=joffset)
+            msk = np.ma.masked_where(msk==0.0,msk)
 
-        print(ifile,args.llonce[0])
-        if (ifile == 0):
-            lat2d,lon2d=libpc.get_latlon(cllfile,joffset)
-        if (args.llonce[0]==0 and ifile > 0):
-            print('toto')
-            lat2d,lon2d=libpc.get_latlon(cllfile,joffset)
+        # deal with mesh
+        if not args.debug :
+            if args.mesh:
+                cmeshf=get_var_lst(args.mesh,args.mapf)
+                cllfile=cmeshf[ifile]
+            else:
+                cllfile=cmaprunfile[ifile]
+            if (args.llonce[0]==0 or ifile == 0):
+                lat2d,lon2d=libpc.get_latlon(cllfile,joffset)
 
         # define subplot
         ax[ifile] = fig.add_subplot(lpltloc[ifile], projection=proj)
 
         # put proj, extend, grid ...
-        if XY_lim[0] == 'global':
-            ax[ifile].set_global()
-        else:
-            ax[ifile].set_extent(XY_lim[0], XY_lim[1])
+        if args.debug :
+            ax[ifile].set_xlim(XY_lim[0][0:2])
+            ax[ifile].set_ylim(XY_lim[0][2:4])
+            ax[ifile].tick_params(labelsize=14)
+            ax[ifile].grid(True)
+        else: 
+            if XY_lim[0] == 'global':
+                ax[ifile].set_global()
+            else:
+                ax[ifile].set_extent(XY_lim[0], XY_lim[1])
 
-        libpc.add_land_features(ax[ifile],['isf','lakes','land'])
-        ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')
+            libpc.add_land_features(ax[ifile],['isf','lakes','land'])
+            ax[ifile].gridlines(linewidth=1, color='k', linestyle='--')#,draw_labels=True)# dms=True, x_inline=False, y_inline=False)
+
         ax[ifile].set_title(csptitle[ifile],fontsize=18)
 
         # make plot
@@ -332,44 +313,61 @@ def main():
         # add map if ask
         if args.mapf:
 
-            # deals with mask
-            msk = 1.0
-            if args.mask:
-                cmsk=args.mask[ifile]
-                print('open '+cmsk)
-                mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[ifile])
-                msk = libpc.get_2d_data(cmsk,'tmask',klvl=mapjk,offsety=joffset)
-                msk = np.ma.masked_where(msk==0.0,msk)
-
-            print('plot pcolormesh ...')
-            mapjk=get_jk(args.mapjk,args.mapz,cmaprunfile[ifile])
-            mapvar2d  = libpc.get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],klvl=mapjk,offsety=joffset)
+            mapvar2d  = libpc.get_2d_data(cmaprunfile[ifile],cmaprunvar[ifile],ktime=mapkt[ifile]-1,klvl=mapjk,offsety=joffset)
             mapvar2dm = np.ma.masked_where(mapvar2d*msk==0.0,mapvar2d)
             if args.mapreff:
                 # def file list
-                mapref2d=libpc.get_2d_data(cmapreffile[ifile],cmaprefvar[ifile],klvl=mapjk,offsety=joffset)
+                print(ifile,cmapreffile,cmaprefvar)
+                mapref2d=libpc.get_2d_data(cmapreffile[ifile],cmaprefvar[ifile],ktime=maprefkt[0]-1,klvl=mapjk,offsety=joffset)
                 mapref2dm = np.ma.masked_where(msk*mapref2d==0.0,mapref2d)
+                if args.maprefop[0] == '-':
+                    print('operation is -')
+                    maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
+                elif args.maprefop[0] == '/':
+                    print('operation is /')
+                    maptoplot2d=(mapvar2dm/mapref2dm)
             else:
                 mapref2dm = 0.0
+                maptoplot2d = mapvar2dm*map_sf[ifile]
 
+            print('compute map to plot')
             if args.maprefop[0] == '-':
-                maptoplot2d=(mapvar2dm-mapref2dm)*map_sf[ifile]
+                print('operation is -')
+                maptoplot2d=(mapvar2dm*map_sf[ifile]-mapref2dm*mapref_sf[ifile])
             elif args.maprefop[0] == '/':
-                maptoplot2d=(mapvar2dm/mapref2dm)
-            pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
-                                        cmap=cmap,norm=norm,transform=ccrs.PlateCarree(),rasterized=True)
+                print('operation is /')
+                maptoplot2d=((mapvar2dm*map_sf[ifile])/(mapref2dm*mapref_sf[ifile]))
+          
+            print('plot pcolormesh ...')
+            if args.debug :
+                pcol = ax[ifile].pcolormesh(maptoplot2d[::ncrs,::ncrs], cmap=mapcb.cmap, norm=mapcb.norm, rasterized=True, )
+                ax[ifile].grid()
+            else:
+                print(lon2d[::ncrs,::ncrs].shape,lat2d[::ncrs,::ncrs].shape,maptoplot2d[::ncrs,::ncrs].squeeze().shape)
+                print(mapcb.cmap,mapcb.norm)
+                pcol = ax[ifile].pcolormesh(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],maptoplot2d[::ncrs,::ncrs], \
+                                            cmap=mapcb.cmap,norm=mapcb.norm,transform=ccrs.PlateCarree(),rasterized=True)
 
         # add contour if ask
         if args.cntf:
-            print('plot contour ...')
             # need to be simplify as same code as map (input runf,runv,reff,refv,jk,offset,msk,cnt_sf)
             cntvar2d  = libpc.get_2d_data(ccntrunfile[ifile],ccntrunvar[ifile],klvl=cntjk,offsety=joffset)
-            cntvar2dm = np.ma.masked_where(cntvar2d==0.0,cntvar2d)
+            lcntmsk=False
+            if lcntmsk :
+                cntvar2dm = np.ma.masked_where(cntvar2d==0.0,cntvar2d)
+            else:
+               cntvar2dm = cntvar2d
+
             if args.cntreff:
                 cntref2d=libpc.get_2d_data(ccntreffile[ifile],ccntrefvar[ifile],klvl=cntjk,offsety=joffset)
                 cntref2dm = np.ma.masked_where(msk*cntref2d==0.0,cntref2d)
+                if args.cntrefop[0] == '-':
+                    cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
+                elif args.cntrefop[0] == '/':
+                    cnttoplot2d=(cntvar2dm/cntref2dm)
             else:
-                cntref2dm = 0.0
+                #cntref2dm = 0.0
+                cnttoplot2d = cntvar2dm * cnt_sf
 
             if args.cntrefop[0] == '-':
                 cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
@@ -399,7 +397,7 @@ def main():
 
     # remove extra white space
     hpx=0.06+0.035*njsplt
-    fig.subplots_adjust(left=0.01,right=0.88, bottom=0.02, top=0.89, wspace=0.1, hspace=hpx)
+    fig.subplots_adjust(left=0.05,right=0.88, bottom=0.06, top=0.85, wspace=0.1, hspace=hpx)
 
     # get_figure_corner position
     corner_coord = libpc.get_plt_bound(ax, nplt) # left, bottom, right, top
@@ -407,7 +405,7 @@ def main():
     # add common colorbar
     if args.mapf:
         print('add colorbar')
-        libpc.add_colorbar(pcol,corner_coord,cunit=args.cbu[0],cfmt=args.cbfmt[0],cext=cextend)
+        mapcb.add_colorbar(pcol,corner_coord)
 
     # put whole figure title
     libpc.add_title(args.ft[0],corner_coord)
@@ -417,7 +415,7 @@ def main():
     libpc.save_output(args.o[0],fig)
 
     # show figure
-    plt.show()
+    #plt.show()
 
 if __name__ == '__main__':
     main()
