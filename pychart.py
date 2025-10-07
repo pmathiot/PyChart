@@ -12,6 +12,8 @@ import lib_misc as libpc
 import cb
 
 
+import cmocean as cmo
+
 def sanity_check(args):
     # sanity check
     if args.spfid:
@@ -93,7 +95,7 @@ def get_argument():
     parser.add_argument("--maprefsf", metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
                                       type=float, nargs='+', required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
-                                      type=float, nargs='+', required=False)
+                                      type=float, nargs="+"  , default=[1.0]     , required=False)
     parser.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , \
                                       type=int  , nargs=1  , required=False)
     parser.add_argument("--mapjt"   , metavar='pcolor_jt'                , help="time frame in fortran convention", \
@@ -126,7 +128,7 @@ def get_argument():
     parser.add_argument("--mesh"    , metavar='mesh file name'           , help="mesh file name"                 , \
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--llonce"  , metavar='read lat/lon each time'   , help="read lat/lon for each plot [0=no]", \
-                                      type=int, nargs=1  , default=[1]   , choices=[0, 1]    , required=False)
+                                      type=int, nargs=1  , default=[0]   , choices=[0, 1]    , required=False)
     parser.add_argument("--sp"      , metavar='subplot disposition'      , help="subplot disposition (ixj)"      , \
                                       type=str  , nargs=1  , default=['1x1']   , required=False)
     parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="0,0 : top left plot, 0,: : top line", \
@@ -158,6 +160,8 @@ def get_argument():
                                       type=float, nargs=1  , required=False)
     parser.add_argument("--cntlvl"  , metavar='contour line level'       , help="contour line level"             , \
                                       type=float, nargs="+", required=False)
+    parser.add_argument("--cntrefop", metavar='contour_ref_operation'   , help="operation made for copmarison"  , \
+                                      type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
     parser.add_argument("--bathyf"  , metavar='bathy file'               , help="bathy file"                     , \
                                       type=str  , nargs="+", required=False)
     parser.add_argument("--bathyv"  , metavar='bathy var '               , help="contour variable"               , \
@@ -365,8 +369,11 @@ def main():
                 #cntref2dm = 0.0
                 cnttoplot2d = cntvar2dm * cnt_sf
 
-            print('plot contour ...')
-            print(cntlvl)
+            if args.cntrefop[0] == '-':
+                cnttoplot2d=(cntvar2dm-cntref2dm)*cnt_sf
+            elif args.cntrefop[0] == '/':
+                cnttoplot2d=(cntvar2dm/cntref2dm)
+
             ax[ifile].contour(lon2d[::ncrs,::ncrs],lat2d[::ncrs,::ncrs],cnttoplot2d[::ncrs,::ncrs], \
                               levels=cntlvl,transform=ccrs.PlateCarree(),colors=cntclr,linewidths=1)
 

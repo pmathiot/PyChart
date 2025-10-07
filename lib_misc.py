@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+import cmocean
+
 # ============================ output argument list in txt file ================
 def save_output(cfile, fig):
     """
@@ -119,6 +121,82 @@ def def_projection(proj_name):
         XY_lim[-1]=proj
 
     return proj, XY_lim
+# ============================ CMAP ====================================
+def get_lvl(bnds):
+    """
+    compute an array of discrete levels used to define the colormap based on a list of levels of length 2, 3 or more.
+    If the list length is 2, 10 equidistance levels are computed from list[0] to list[1]
+                          3, X levels are computed from list[0] to list[1] by a step of list[2]
+                         >3, the levels are the one specified in the input parameters
+
+    Parameters
+    ----------
+    parameter 1: list
+        list of levels (length 2, 3 or more)
+
+    Returns
+    -------
+    output 1: np.array
+        array of levels
+
+    Raises
+    ------
+    No raise
+    """
+    if len(bnds)==3 :
+        lvlmin = bnds[0]
+        lvlmax = bnds[1]
+        lvlint = bnds[2]
+        lvlmax = lvlmin+round((lvlmax-lvlmin)/lvlint)*lvlint
+        lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
+    elif len(bnds)==2:
+        lvlmin = bnds[0]
+        lvlmax = bnds[1]
+        lvl=np.linspace(lvlmin, lvlmax, num=10)
+    else:
+        lvl=np.array(bnds[:])
+    return lvl
+
+def get_cmap(cpal, bnds, cnorm, cext='neither', cmo=False):
+    """
+    define the colormap and the norm to used for pcolormesh
+
+    Parameters
+    ----------
+    parameter 1: string
+        cmap name (from the default availble colormap in python)
+    parameter 2: string
+        type of norm to use (BoundaryNorm, LogNorm, Normalize)
+    parameter 3: type of extention of the colorbar (neither, both, max, min)'
+
+    Returns
+    -------
+    output 1: cmap (cmap object)
+    output 2: norm (colors object)
+
+    Raises
+    ------
+    No raise
+    """
+    if cmo:
+        cmap=eval('cmocean.cm.'+cpal)
+    else:
+        cmap = plt.get_cmap(cpal)
+
+    if bnds:
+        lvl=get_lvl(bnds)
+    else:
+        print(' Need definition of levels (min,max) at least.')
+        sys.exit(42)
+
+    if cnorm == 'BoundaryNorm':
+        norm = colors.BoundaryNorm(lvl, cmap.N, extend=cext)
+    elif cnorm == 'LogNorm':
+        norm = colors.LogNorm(vmin=lvl[0],vmax=lvl[-1])
+    elif cnorm == 'Normalize':
+        norm = colors.Normalize(vmin=lvl[0],vmax=lvl[-1])
+
+    return cmap,norm
 
 # ============================ LEGEND ==================================
 def get_corner(ax):
@@ -190,7 +268,8 @@ def get_subplt_title(args,nplt):
     # build final title
     ctitle=[None]*nplt
     for iplt in range(nplt):
-        ctitle[iplt]=csubplt_title[iplt]+crun_title[iplt]+cref_title[iplt]
+        #ctitle[iplt]=csubplt_title[iplt]+crun_title[iplt]+cref_title[iplt]
+        ctitle[iplt]=crun_title[iplt]+cref_title[iplt]
 
     return ctitle
 
@@ -236,10 +315,10 @@ def get_latlon(cfile,offsety=None):
     return lat2d,lon2d
 
 def get_variable_shape(ncvar):
-    redimt=re.compile(r"\b(t|tim|time_counter|time|time_instant)\b", re.I)
+    redimt=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
     redimz=re.compile(r"\b(z|dep|depth|deptht|nav_lev)\b", re.I)
-    redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj)\b", re.I)
-    redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni)\b", re.I)
+    redimy=re.compile(r"\b(j|y|y_grid_.+|latitude|lat|nj|ny)\b", re.I)
+    redimx=re.compile(r"\b(i|x|x_grid_.+|lon|longitude|long|ni|nx)\b", re.I)
     dimlst = ncvar.dimensions
     if (len(ncvar.shape)==1) and redimx.match(dimlst[0]):
         cshape='X'
@@ -261,8 +340,8 @@ def get_variable_shape(ncvar):
 
 def get_dim(cfile,cdir):
 
-    dncdim={'x':re.compile(r"\b(x|x_grid_.+|lon|longitude|long)\b", re.I),
-            'y':re.compile(r"\b(y|y_grid_.+|latitude|lat)\b", re.I),
+    dncdim={'x':re.compile(r"\b(x|nx|x_grid_.+|lon|longitude|long)\b", re.I),
+            'y':re.compile(r"\b(y|ny|y_grid_.+|latitude|lat)\b", re.I),
             'z':re.compile(r"\b(z|dep|depth|deptht)\b", re.I),
             't':re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
            }
@@ -290,10 +369,8 @@ def get_dims(cfile):
     return nx,ny,nz,nt
 
 # get_2d_data
-def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
+def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
     print(' reading '+cvar+' in '+cfile+' ...')
-    print(klvl, ktime)
-
     if (klvl > 0) and (ktime > 0) :
         print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
         sys.exit(42)
@@ -304,7 +381,9 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None):
         offsety=ny
 
     ncid   = nc.Dataset(cfile)
-    clvar  = get_name(cvar,ncid.variables.keys())
+    lmask=False
+    ncid.set_auto_maskandscale(lmask)
+    clvar   = get_name(cvar,ncid.variables.keys())
     var    = ncid.variables[clvar]
     shape  = get_variable_shape(var)
 
