@@ -47,7 +47,7 @@ def main():
     parser.add_argument("--maprefjt"   , metavar='pcolor_jt_ref_file'    , help="time frame in fortran convention", \
                                       type=int  , nargs='+'  , default=[1], required=False)
     parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
-                                      type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
+                                      type=str  , nargs=1  , default=[None]     , choices=[None,'-','/'], required=False)
     parser.add_argument("--maprefsf", metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
                                       type=float, nargs='+', required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
@@ -89,7 +89,7 @@ def main():
                                       type=int, nargs=1  , default=[0]   , choices=[0, 1]    , required=False)
     parser.add_argument("--sp"      , metavar='subplot disposition'      , help="subplot disposition (ixj)"      , \
                                       type=str  , nargs=1  , default=['1x1']   , required=False)
-    parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="0,0 : top left plot, 0,: : top line", \
+    parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="[0,2,0,3] : position x0,x1,y0,y1 in the plot grid", \
                                       type=str  , nargs="+",                 required=False)
     parser.add_argument("-o"        , metavar='output name'              , help="output name"                    , \
                                       type=str  , nargs=1  , default=['figure'], required=False)
@@ -109,7 +109,7 @@ def main():
     parser.add_argument("--cntrefv" , metavar='contour ref var '         , help="contour reference variable"     , \
                                       type=str  , nargs=1  , required=False)
     parser.add_argument("--cntrefop", metavar='contour_ref_operation'     , help="operation made for comparison"  , \
-                                      type=str  , nargs=1  , default=['-']     , choices=['-','/'], required=False)
+                                      type=str  , nargs=1  , default=[None]     , choices=[None,'-','/'], required=False)
     parser.add_argument("--cntsf"   , metavar='contour data scale factor', help="contour data scale factor"      , \
                                       type=float, nargs=1  , default=[1.0]    , required=False)
     parser.add_argument("--cntrefsf"   , metavar='contour reference data scale factor', help="contour reference data scale factor"      , \
@@ -143,6 +143,7 @@ def main():
         args.mapreff = fix_list(args.mapreff, nfile_map, "map reference files")
         args.mapv = fix_list(args.mapv, nfile_map, "map variables")
         args.maprefv = fix_list(args.maprefv, nfile_map, "map reference variables")
+        args.maprefop = fix_list(args.maprefop, nfile_map, "map reference operation")
         args.mapsf = fix_list(args.mapsf, nfile_map, "map scale factors")
         args.maprefsf = fix_list(args.maprefsf, nfile_map, "map reference scale factors")
         args.mapjt = fix_list(args.mapjt, nfile_map, "map time frames")
@@ -156,11 +157,22 @@ def main():
         args.cntreff = fix_list(args.cntreff, nfile_cnt, "contour reference files")
         args.cntv = fix_list(args.cntv, nfile_cnt, "contour variables")
         args.cntrefv = fix_list(args.cntrefv, nfile_cnt, "contour reference variables")
+        args.cntrefop = fix_list(args.cntrefop, nfile_map, "cnt reference operation")
         args.cntsf = fix_list(args.cntsf, nfile_cnt, "contour scale factors")
         args.cntrefsf = fix_list(args.cntrefsf, nfile_cnt, "contour reference scale factors")
         args.cntjt = fix_list(args.cntjt, nfile_cnt, "contour time frames")
         args.cntjk = fix_list(args.cntjk, nfile_cnt, "contour levels")
         args.cntz = fix_list(args.cntz, nfile_cnt, "contour depths")
+
+    if args.ploc:
+        nloc = len(args.ploc)
+        if nloc != nfile_map and nloc != nfile_cnt:
+            raise ValueError(
+                f"Number of values for ploc ({nloc}) must be equal to number of map files ({nfile_map}) or contour files ({nfile_cnt})."
+            )
+        
+    args.spfid = fix_list(args.spfid, nfile_map, "run name for subplot titles")
+    args.sprid = fix_list(args.sprid, nfile_map, "ref name for subplot titles")
 
     # --- fix list consistency for fig arguments ---
     args.p = fix_list(args.p, nfile_map, "projection")
@@ -173,6 +185,9 @@ def main():
             "sp": args.sp[0],
             "output": args.o[0],
             "crs": args.crs[0],
+            "ploc": args.ploc,
+            "spfid": args.spfid,
+            "sprid": args.sprid,
         },
         "map": {
             "files": args.mapf,
@@ -184,7 +199,7 @@ def main():
             "jt": args.mapjt,
             "jk": args.mapjk,
             "z": args.mapz,
-            "op": args.maprefop[0],
+            "op": args.maprefop,
         },
         "cnt": {
             "files": args.cntf,
@@ -193,7 +208,7 @@ def main():
             "ref_vars": args.cntrefv,
             "scale": args.cntsf,
             "ref_scale": args.cntrefsf,
-            "op": args.cntrefop[0],
+            "op": args.cntrefop,
             "jt": args.cntjt,
             "z": args.cntz,
             "jk": args.cntjk,
@@ -232,6 +247,7 @@ def main():
         cmo=cb_config["cmocean"]
         )
 
+    print(figure_cfg["spfid"])
 
     # --- Loop through subplots ---
     for iax, ax in enumerate(axes):
@@ -248,8 +264,11 @@ def main():
                 ktref=int(map_config["jt"][iax]) if map_config["jt"][iax] is not None else 1,
                 sf=float(map_config["scale"][iax]) if map_config["scale"][iax] is not None else 1.0,
                 sfref=float(map_config["ref_scale"][iax]) if map_config["ref_scale"][iax] is not None else 1.0,
+                trun=figure_cfg["spfid"][iax],
+                tref=figure_cfg["sprid"][iax],
+                refop=map_config["op"][iax]
             )
-            print(map_data.type)
+
             if map_data.type == 'tri_unstructured':
                 map_data = map_data.to_triunstructured()
             elif map_data.type == 'ico_unstructured':
@@ -257,14 +276,13 @@ def main():
             else:
                 map_data = map_data.to_structured()
 
+            print(map_data.trun, map_data.tref, map_data.refop)
+
             map_data.get_coords()
             map_data.get_data()
             map_data.compute_data()
-            start = time.time()
             pcol = map_data.plot_map(ax, map_cb)  # returns QuadMesh or similar for colorbar
-            end = time.time()
-            elapsed = end - start
-            print(f'Time taken: {elapsed:.6f} seconds')
+            map_data.add_title(ax)
 
         # CONTOUR
         if iax < len(cnt_config["files"]):
@@ -279,6 +297,7 @@ def main():
                 ktref=int(cnt_config["jt"][iax]) if cnt_config["jt"][iax] is not None else 1,
                 sf=float(cnt_config["scale"][iax]) if cnt_config["scale"][iax] is not None else 1.0,
                 sfref=float(cnt_config["ref_scale"][iax]) if cnt_config["ref_scale"][iax] is not None else 1.0,
+                refop=cnt_config["op"][iax] 
             )
 
             if cnt_data.type == 'tri_unstructured':
@@ -291,12 +310,8 @@ def main():
             cnt_data.get_coords()
             cnt_data.get_data()
             cnt_data.compute_data()
-            start = time.time()
             cntlvl=cb.get_lvl(args.cntlvl)
             cnt_data.plot_cnt(ax, levels=cntlvl, colors='k', linewidths=1)
-            end = time.time()
-            elapsed = end - start
-            print(f'Time taken: {elapsed:.6f} seconds')
 
         else:
             ax.set_visible(False)
@@ -305,8 +320,10 @@ def main():
     fb.add_colorbar(pcol,map_cb)
 
     print(f"Saving figure to {figure_cfg['output']}")
+    # make layout tight
+    #plt.tight_layout()
     plt.show()
-    fig.savefig(figure_cfg["output"], dpi=300)
+    fig.savefig(figure_cfg["output"], dpi=150)
 
 
 if __name__ == "__main__":

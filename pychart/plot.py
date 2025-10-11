@@ -16,7 +16,8 @@ def plot_cartesian(ax, data, title="Plot"):
     return im
 
 class PlotData:
-    def __init__(self, file, var, jk=1, kt=1, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0):
+    def __init__(self, file, var, jk=1, kt=1, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        
         self.file = file          # Main data file
         self.var = var            # Variable name in the file
         self.jk = jk              # Depth level (if applicable)
@@ -25,12 +26,15 @@ class PlotData:
         self.varref = varref      # Reference variable (optional)
         self.jkref = jkref        # Reference depth level (if applicable)
         self.ktref = ktref        # Reference time frame (if applicable)
+        self.refop = refop        # Reference operation (if applicable)
         self.data = None          # Loaded data
         self.dataref = None       # Loaded reference data
         self.lon = None           # Longitude coordinates
         self.lat = None           # Latitude coordinates
         self.sf = sf            # Scale factor for the main data
         self.sfref = sfref         # Scale factor for the reference data
+        self.trun = trun    # Title for the run ID
+        self.tref = tref      # Title for the variable
 
         self.type = self._init_type()  # Data type: 'structured' or 'unstructured'
         print(f"Initialized PlotData with type: {self.type}")
@@ -70,13 +74,14 @@ class PlotData:
         ds.close()
         return grid_type
 
-#    def get_data(self, joffset=-2):
-#        """
-#        Load the main data and reference data (if applicable).
-#        """
-#        self.data = get_2d_data(self.file, self.var, klvl=self.jk, ktime=self.kt, offsety=joffset)
-#        if self.fileref and self.varref:
-#            self.dataref = get_2d_data(self.fileref, self.varref, klvl=self.jkref, ktime=self.ktref, offsety=joffset)
+    def add_title(self,ax):
+        if self.tref and self.refop:
+            ctitle=f"{self.trun} {self.refop} {self.tref}"
+        elif self.trun:
+            ctitle=f"{self.trun}"
+        else:
+            ctitle=f"{self.var}"
+        ax.set_title(ctitle,fontsize=18)
 
 
     def compute_data(self, operation=None):
@@ -103,7 +108,10 @@ class PlotData:
             jkref=self.jkref,
             ktref=self.ktref,
             sf=self.sf,
-            sfref=self.sfref
+            sfref=self.sfref,
+            trun=self.trun,
+            tref=self.tref,
+            refop=self.refop
         )
     
     def to_triunstructured(self):
@@ -117,7 +125,10 @@ class PlotData:
             jkref=self.jkref,
             ktref=self.ktref,
             sf=self.sf,
-            sfref=self.sfref
+            sfref=self.sfref,
+            trun=self.trun,
+            tref=self.tref,
+            refop=self.refop
         )
     
     def to_icounstructured(self):
@@ -131,12 +142,15 @@ class PlotData:
             jkref=self.jkref,
             ktref=self.ktref,
             sf=self.sf,
-            sfref=self.sfref
+            sfref=self.sfref,
+            trun=self.trun,
+            tref=self.tref,
+            refop=self.refop
         )
 
 class StructuredPlotData(PlotData):
-    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0):
-        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref)
+    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
@@ -185,8 +199,8 @@ class StructuredPlotData(PlotData):
         return cs
     
 class TriUnStructuredPlotData(PlotData):
-    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0):
-        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref)
+    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
@@ -313,8 +327,8 @@ class TriUnStructuredPlotData(PlotData):
         return nodal_data
 
 class IcoUnStructuredPlotData(PlotData):
-    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0):
-        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref)
+    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """

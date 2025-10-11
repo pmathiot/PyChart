@@ -9,6 +9,7 @@ class FigureBuilder:
         self.config = config
         self.fig = None
         self.axes = []
+        self.ploc = config.get("ploc", None)
 
         # Load projections if a YAML file is provided
         self.projections = {}
@@ -39,11 +40,24 @@ class FigureBuilder:
 
     def build_layout(self):
         nisplt, njsplt = self._get_subplot(self.config["sp"])
-        fig = plt.figure(figsize=np.array([297, 297*njsplt/nisplt]) / 25.4)
+        fig = plt.figure(figsize=np.array([297, 297*(njsplt+1)/nisplt]) / 25.4)
         gs = fig.add_gridspec(njsplt, nisplt)
 
-        for iplt in range(nisplt * njsplt):
-            ax = fig.add_subplot(gs[iplt // nisplt, iplt % nisplt], projection=self.proj[iplt])
+        pltloc=[]
+        if self.ploc:
+            nplt = len(self.ploc)
+            for iplt in range(nplt):
+                # Convert the string to a list of integers
+                pltpos = list(map(int, self.ploc[iplt].strip('[]').split(',')))
+                pltloc.append(gs[pltpos[2]:pltpos[3]+1, pltpos[0]:pltpos[1]+1])
+        else:
+            pltloc.append(gs[iplt // nisplt, iplt % nisplt])
+            nplt = len(pltloc)
+
+        for iplt in range(nplt):
+            print(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]}")
+            print(pltloc[iplt])
+            ax = fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
             extent= self.extent[iplt]
             if extent:
                 if extent[0] == "global":
@@ -57,8 +71,12 @@ class FigureBuilder:
             self.add_land_features(ax, ['isf', 'lakes', 'land'])
             self.axes.append(ax)
 
-        self.fig = fig
         self._add_title(self.config["title"])
+            # remove extra white space
+        hpx=0.06+0.035*njsplt
+        fig.subplots_adjust(left=0.05,right=0.88, bottom=0.06, top=0.85, wspace=0.1, hspace=hpx)
+        self.fig = fig
+        
         return fig, self.axes
 
     def add_land_features(self, ax, features):
@@ -94,8 +112,8 @@ class FigureBuilder:
             y0, y1 = min(y0, box.y0), max(y1, box.y1)
         return [x0, y0, x1, y1]
 
-    def _add_title(self, title):
+    def _add_title(self, title, yoffset=0.05, height=0.1):
         boxxy = self._get_figure_bounds()
-        cax = plt.axes([boxxy[0], boxxy[3], boxxy[2]-boxxy[0], 1-boxxy[3]])
+        cax = plt.axes([boxxy[0], boxxy[3] + yoffset, boxxy[2]-boxxy[0], height])
         cax.text(0.5, 0.5, title, ha='center', va='bottom', fontsize=20)
         cax.axis('off')
