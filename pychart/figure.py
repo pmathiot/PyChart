@@ -3,19 +3,23 @@ import numpy as np
 import yaml
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import importlib.resources as pkg_resources
+import pathlib
+
 
 class FigureBuilder:
-    def __init__(self, config, projections_yaml=None):
+    def __init__(self, config):
         self.config = config
         self.fig = None
         self.axes = []
         self.ploc = config.get("ploc", None)
 
-        # Load projections if a YAML file is provided
+        # Load projections
         self.projections = {}
-        if projections_yaml:
-            with open(projections_yaml, "r") as f:
-                self.projections = yaml.safe_load(f)["projections"]
+        projections_yaml = str(pathlib.Path(__file__).parent)+"/pychart_projs.yml"
+        print(projections_yaml)
+        with open(projections_yaml, "r") as f:
+            self.projections = yaml.safe_load(f)["projections"]
 
         # Initialize projection and extent if the projection is available as key in config
         self.proj = []

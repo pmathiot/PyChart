@@ -431,7 +431,6 @@ class IcoUnStructuredPlotData(PlotData):
         self.lat=ds['lat'].values.squeeze()
         self.bnds_lat = ds['bounds_lat'].values  # shape: (cell, 6)
         self.bnds_lon = ds['bounds_lon'].values  # shape: (cell, 6)
-        self.area = ds['aire'].values
 
     def plot_map(self, ax, map_cb, **kwargs):
         """

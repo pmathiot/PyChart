@@ -23,7 +23,7 @@ def main():
     cnt_config = pychart_config["cnt"]
     cb_config = pychart_config["cb"]
 
-    fb = FigureBuilder(config=figure_config, projections_yaml="projections.yml")
+    fb = FigureBuilder(config=figure_config)
     fig, axes = fb.build_layout()                 # builds figure + subplots + titles
 
     # --- Loop through subplots ---
@@ -43,7 +43,7 @@ def main():
     fb.add_colorbar(pcol,map_cb)
 
     plt.show()
-    
+
     print(f"Saving figure to {figure_config['output']}")
     fig.savefig(figure_config["output"], dpi=150)
 
