@@ -179,8 +179,6 @@ def get_config(args):
             "output": args.o[0],
             "crs": args.crs[0],
             "ploc": args.ploc,
-            "spfid": args.spfid,
-            "sprid": args.sprid,
         },
         "map": {
             "files": args.mapf,
@@ -193,6 +191,8 @@ def get_config(args):
             "jk": args.mapjk,
             "z": args.mapz,
             "op": args.maprefop,
+            "spfid": args.spfid,
+            "sprid": args.sprid,
         },
         "cnt": {
             "files": args.cntf,

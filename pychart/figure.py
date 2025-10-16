@@ -13,6 +13,7 @@ class FigureBuilder:
         self.fig = None
         self.axes = []
         self.ploc = config.get("ploc", None)
+        self.output_file=config["output"]
 
         # Load projections
         self.projections = {}
@@ -44,8 +45,8 @@ class FigureBuilder:
 
     def build_layout(self):
         nisplt, njsplt = self._get_subplot(self.config["sp"])
-        fig = plt.figure(figsize=np.array([297, 297*(njsplt)/nisplt]) / 25.4)
-        gs = fig.add_gridspec(njsplt, nisplt)
+        self.fig = plt.figure(figsize=np.array([297, 297*(njsplt)/nisplt]) / 25.4)
+        gs = self.fig.add_gridspec(njsplt, nisplt)
 
         pltloc=[]
         if self.ploc:
@@ -62,7 +63,7 @@ class FigureBuilder:
         for iplt in range(len(self.proj)):
             print(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]}")
             print(pltloc[iplt])
-            ax = fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
+            ax = self.fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
             extent= self.extent[iplt]
             if extent:
                 if extent[0] == "global":
@@ -78,14 +79,10 @@ class FigureBuilder:
 
             # remove extra white space
         hpx=0.06+0.035*njsplt
-        fig.subplots_adjust(left=0.05,right=0.88, bottom=0.06, top=0.85, wspace=0.1, hspace=hpx)
+        self.fig.subplots_adjust(left=0.05,right=0.88, bottom=0.06, top=0.85, wspace=0.1, hspace=hpx)
 
         self._add_title(self.config["title"], yoffset=0.025*nisplt/njsplt)
 
-        self.fig = fig
-        
-        
-        return fig, self.axes
 
     def add_land_features(self, ax, features):
         feature_map = {
@@ -125,3 +122,7 @@ class FigureBuilder:
         cax = plt.axes([boxxy[0], boxxy[3] + yoffset, boxxy[2]-boxxy[0], height])
         cax.text(0.5, 0.5, title, ha='center', va='bottom', fontsize=20)
         cax.axis('off')
+
+    def save_figure(self):
+        print(f"Saving figure to {self.output_file}")
+        self.fig.savefig(self.output_file, dpi=150)

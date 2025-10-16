@@ -16,7 +16,7 @@ def plot_cartesian(ax, data, title="Plot"):
     ax.set_title(title)
     return im
 
-def add_map_plot(map_config, cb_config, figure_config, iax, ax):
+def add_map_plot(map_config, cb_config, iax, ax):
     map_data = PlotData(
         file=map_config["files"][iax],
         var=map_config["vars"][iax],
@@ -28,8 +28,8 @@ def add_map_plot(map_config, cb_config, figure_config, iax, ax):
         ktref=int(map_config["jt"][iax]) if map_config["jt"][iax] is not None else 1,
         sf=float(map_config["scale"][iax]) if map_config["scale"][iax] is not None else 1.0,
         sfref=float(map_config["ref_scale"][iax]) if map_config["ref_scale"][iax] is not None else 1.0,
-        trun=figure_config["spfid"][iax],
-        tref=figure_config["sprid"][iax],
+        trun=map_config["spfid"][iax],
+        tref=map_config["sprid"][iax],
         refop=map_config["op"][iax]
     )
 

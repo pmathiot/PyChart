@@ -24,13 +24,13 @@ def main():
     cb_config = pychart_config["cb"]
 
     fb = FigureBuilder(config=figure_config)
-    fig, axes = fb.build_layout()                 # builds figure + subplots + titles
+    fb.build_layout()                 # builds figure + subplots + titles
 
     # --- Loop through subplots ---
-    for iax, ax in enumerate(axes):
+    for iax, ax in enumerate(fb.axes):
         # MAP
         if iax < len(map_config["files"]):
-            map_cb, pcol = add_map_plot(map_config, cb_config, figure_config, iax, ax)
+            map_cb, pcol = add_map_plot(map_config, cb_config, iax, ax)
 
         # CONTOUR
         if iax < len(cnt_config["files"]):
@@ -44,8 +44,7 @@ def main():
 
     plt.show()
 
-    print(f"Saving figure to {figure_config['output']}")
-    fig.savefig(figure_config["output"], dpi=150)
+    fb.save_figure()
 
 
 if __name__ == "__main__":
