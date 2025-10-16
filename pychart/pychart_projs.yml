@@ -1,0 +1,128 @@
+projections:
+  ortho_natl:
+    projection: "Orthographic"
+    params:
+      central_longitude: -60.0
+      central_latitude: 45.0
+    extent:
+      - [-180, 180, -90, -60]
+      - "PlateCarree"
+
+  south_stereo:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: 0.0
+    extent:
+      - [-180, 180, -90, -60]
+      - "PlateCarree"
+
+  south_ocean:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: 0.0
+    extent:
+      - [-180, 180, -90, -45]
+      - "PlateCarree"
+
+  ant:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: 0.0
+    extent:
+      - [-180, 180, -90, -65]
+      - "PlateCarree"
+
+  arctic:
+    projection: "Stereographic"
+    params:
+      central_latitude: 90.0
+      central_longitude: 0.0
+    extent:
+      - [-180, 180, 60, 90]
+      - "PlateCarree"
+
+  ross:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: -180.0
+    extent:
+      - [-667000.0, 833000.0, 1050000.0, 2470000.0]
+      - "cproj"
+
+  fris:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: 0.0
+    extent:
+      - [-1718000.0, -411400.0, 125900.0, 1411000.0]
+      - "cproj"
+
+  ris:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: -180.0
+    extent:
+      - [-450000.0, 800000.0, 440000.0, 1700000.0]
+      - "cproj"
+
+  pig:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: 0.0
+    extent:
+      - [-96, -105, -73.9, -76]
+      - "PlateCarree"
+
+  ispig:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: 0.0
+    extent:
+      - [-1756000.0, -1342000.0, -543900.0, -129900.0]
+      - "cproj"
+
+  amu:
+    projection: "Stereographic"
+    params:
+      central_latitude: -90.0
+      central_longitude: 0.0
+    extent:
+      - [-99, -130, -70, -78]
+      - "PlateCarree"
+
+  global:
+    projection: "PlateCarree"
+    extent:
+      - "global"
+
+  global_robinson:
+    projection: "Robinson"
+    params:
+      central_longitude: 0.0
+    extent:
+      - "global"
+
+  global_mercator:
+    projection: "Mercator"
+    params:
+      central_longitude: -90.0
+    extent:
+      - "global"
+
+  greenland:
+    projection: "LambertConformal"
+    params:
+      central_longitude: -40
+      central_latitude: 45
+      cutoff: 20
+    extent:
+      - [-1124000.0, 897000.0, 1648000.0, 5198000.0]
+      - "cproj"
