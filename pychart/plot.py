@@ -7,6 +7,7 @@ import xarray as xr
 from matplotlib.collections import PolyCollection
 from scipy.interpolate import griddata
 from pychart.io_utils import get_2d_data, get_latlon_var, get_2d_data
+from pychart import cb
 import matplotlib.tri as tri
 from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
 
@@ -15,11 +16,87 @@ def plot_cartesian(ax, data, title="Plot"):
     ax.set_title(title)
     return im
 
+def add_map_plot(map_config, cb_config, figure_config, iax, ax):
+    map_data = PlotData(
+        file=map_config["files"][iax],
+        var=map_config["vars"][iax],
+        jk=int(map_config["jk"][iax]) if map_config["jk"][iax] is not None else 1,
+        kt=int(map_config["jt"][iax]) if map_config["jt"][iax] is not None else 1,
+        fileref=map_config["refs"][iax],
+        varref=map_config["ref_vars"][iax],
+        jkref=int(map_config["jk"][iax]) if map_config["jk"][iax] is not None else 1,
+        ktref=int(map_config["jt"][iax]) if map_config["jt"][iax] is not None else 1,
+        sf=float(map_config["scale"][iax]) if map_config["scale"][iax] is not None else 1.0,
+        sfref=float(map_config["ref_scale"][iax]) if map_config["ref_scale"][iax] is not None else 1.0,
+        trun=figure_config["spfid"][iax],
+        tref=figure_config["sprid"][iax],
+        refop=map_config["op"][iax]
+    )
+
+        # get map colorbar
+    map_cb = cb.cb(
+        cb_config["colormap"], 
+        cb_config["norm"],
+        cb_config["units"],
+        cb_config["fmt"],
+        cb_config["extend"],
+        cb_config["levels"],
+        cmo=cb_config["cmocean"]
+        )
+
+    if map_data.type == 'tri_unstructured':
+        map_data = map_data.to_triunstructured()
+    elif map_data.type == 'ico_unstructured':
+        map_data = map_data.to_icounstructured()
+    else:
+        map_data = map_data.to_structured()
+
+    print(map_data.trun, map_data.tref, map_data.refop)
+
+    map_data.get_coords()
+    map_data.get_data()
+    map_data.compute_data()
+    pcol = map_data.plot_map(ax, map_cb)  # returns QuadMesh or similar for colorbar
+    map_data.add_title(ax)
+
+    return map_cb, pcol
+
+def add_cnt_plot(cnt_config, iax, ax):
+    cnt_data = PlotData(
+        file=cnt_config["files"][iax],
+        var=cnt_config["vars"][iax],
+        lvls=cnt_config["levels"],
+        jk=int(cnt_config["jk"][iax]) if cnt_config["jk"][iax] is not None else 1,
+        kt=int(cnt_config["jt"][iax]) if cnt_config["jt"][iax] is not None else 1,
+        fileref=cnt_config["refs"][iax],
+        varref=cnt_config["ref_vars"][iax],
+        jkref=int(cnt_config["jk"][iax]) if cnt_config["jk"][iax] is not None else 1,
+        ktref=int(cnt_config["jt"][iax]) if cnt_config["jt"][iax] is not None else 1,
+        sf=float(cnt_config["scale"][iax]) if cnt_config["scale"][iax] is not None else 1.0,
+        sfref=float(cnt_config["ref_scale"][iax]) if cnt_config["ref_scale"][iax] is not None else 1.0,
+        refop=cnt_config["op"][iax] 
+    )
+
+    if cnt_data.type == 'tri_unstructured':
+        cnt_data = cnt_data.to_triunstructured()
+    elif cnt_data.type == 'ico_unstructured':
+        cnt_data = cnt_data.to_icounstructured()
+    else:
+        cnt_data = cnt_data.to_structured()
+    
+    cnt_data.get_coords()
+    cnt_data.get_data()
+    cnt_data.compute_data()
+    print(cnt_data.lvls)
+    cntlvl=cb.get_lvl(cnt_data.lvls)
+    cnt_data.plot_cnt(ax, levels=cntlvl, colors='k', linewidths=1)
+
 class PlotData:
-    def __init__(self, file, var, jk=1, kt=1, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+    def __init__(self, file, var, lvls=None, jk=1, kt=1, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
         
         self.file = file          # Main data file
         self.var = var            # Variable name in the file
+        self.lvls = lvls
         self.jk = jk              # Depth level (if applicable)
         self.kt = kt              # Time frame (if applicable)
         self.fileref = fileref    # Reference file (optional)
@@ -101,6 +178,7 @@ class PlotData:
         return StructuredPlotData(
             file=self.file,
             var=self.var,
+            lvls = self.lvls,
             jk=self.jk,
             kt=self.kt,
             fileref=self.fileref,
@@ -118,6 +196,7 @@ class PlotData:
         return TriUnStructuredPlotData(
             file=self.file,
             var=self.var,
+            lvls=self.lvls,
             jk=self.jk,
             kt=self.kt,
             fileref=self.fileref,
@@ -135,6 +214,7 @@ class PlotData:
         return IcoUnStructuredPlotData(
             file=self.file,
             var=self.var,
+            lvls=self.lvls,
             jk=self.jk,
             kt=self.kt,
             fileref=self.fileref,
@@ -149,8 +229,8 @@ class PlotData:
         )
 
 class StructuredPlotData(PlotData):
-    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
-        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
+    def __init__(self, file, var, lvls=None, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        super().__init__(file, var, lvls, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
@@ -199,8 +279,8 @@ class StructuredPlotData(PlotData):
         return cs
     
 class TriUnStructuredPlotData(PlotData):
-    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
-        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
+    def __init__(self, file, var, lvls=None, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        super().__init__(file, var, lvls, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
@@ -327,8 +407,8 @@ class TriUnStructuredPlotData(PlotData):
         return nodal_data
 
 class IcoUnStructuredPlotData(PlotData):
-    def __init__(self, file, var, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
-        super().__init__(file, var, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
+    def __init__(self, file, var, lvls, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        super().__init__(file, var, lvls, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
