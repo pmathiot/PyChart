@@ -17,9 +17,9 @@ def parse_args():
     parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
                                       type=str  , nargs=1  , default=[None]     , choices=[None,'-','/'], required=False)
     parser.add_argument("--maprefsf", metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
-                                      type=float, nargs='+', required=False)
+                                      type=float, nargs='+', default=[1.0]     , required=False)
     parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
-                                      type=float, nargs="+"  , default=[1.0]     , required=False)
+                                      type=float, nargs="+", default=[1.0]     , required=False)
     parser.add_argument("--mapjt"   , metavar='pcolor_jt'                , help="time frame in fortran convention", \
                                       type=int  , nargs='+'  , default=[1], required=False)
 
