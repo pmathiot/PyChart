@@ -7,7 +7,6 @@ import xarray as xr
 from matplotlib.collections import PolyCollection
 from scipy.interpolate import griddata
 from pychart.io_utils import get_2d_data, get_latlon_var, get_2d_data
-from pychart.cb import cb
 from pychart.log import info, debug
 import matplotlib.tri as tri
 from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
@@ -17,7 +16,7 @@ def plot_cartesian(ax, data, title="Plot"):
     ax.set_title(title)
     return im
 
-def add_map_plot(map_config, cb_config, iax, ax):
+def add_map_plot(map_config, map_cb, iax, ax):
     map_data = PlotData(
         file=map_config["files"][iax],
         var=map_config["vars"][iax],
@@ -34,18 +33,7 @@ def add_map_plot(map_config, cb_config, iax, ax):
         refop=map_config["op"][iax]
     )
     print(map_data)
-
-    # get map colorbar
-    map_cb = cb(
-        cb_config["colormap"], 
-        cb_config["norm"],
-        cb_config["units"],
-        cb_config["fmt"],
-        cb_config["extend"],
-        cb_config["levels"],
-        cmo=cb_config["cmocean"]
-        )
-    print(map_cb)
+    print()
 
     if map_data.type == 'tri_unstructured':
         map_data = map_data.to_triunstructured()
@@ -60,7 +48,7 @@ def add_map_plot(map_config, cb_config, iax, ax):
     pcol = map_data.plot_map(ax, map_cb)  # returns QuadMesh or similar for colorbar
     map_data.add_title(ax)
 
-    return map_cb, pcol
+    return  pcol
 
 def add_cnt_plot(cnt_config, iax, ax):
     cnt_data = PlotData(

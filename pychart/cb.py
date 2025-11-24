@@ -35,7 +35,7 @@ class cb:
         lvl_min = self._lvls[0]
         lvl_max = self._lvls[-1]
         lvl_count = len(self._lvls)
-
+        
         return (
             f"\n"
             f"Colorbar:\n"
@@ -47,22 +47,24 @@ class cb:
             f"  Format       : {self.fmt}\n"
         )
 
-    def __init__(self,cmap,cnorm,cunit,cfmt,cext,lvls,cmo=False):
-        self.unit=cunit
-        self.fmt=cfmt
-        self.ext=cext
-
-        if cnorm == 'TwoSlopeNorm':
+    def __init__(self,config):
+        # get map colorbar
+        print(config)
+        self.unit=config["units"]
+        self.fmt=config["fmt"]
+        self.ext=config["extend"]
+        lvls=config["levels"]
+        if config["norm"] == 'TwoSlopeNorm':
             self._lvls=[lvls[0],lvls[2],lvls[1]]
         else:
             self._lvls=get_lvl(lvls)
 
-        if cmo:
-            self.cmap=eval(cmap)
+        if config["cmocean"]:
+            self.cmap=eval(config["colormap"])
         else:
-            self.cmap = plt.get_cmap(cmap)
+            self.cmap = plt.get_cmap(config["colormap"])
 
-        self.norm = self._compute_norm(cnorm)
+        self.norm = self._compute_norm(config["norm"])
 
     @property
     def norm(self):

@@ -6,13 +6,15 @@ from pychart.figure import FigureBuilder  # <- new class file replacing buid_fig
 from pychart import cb
 from pychart.cli import parse_args, sanity_checks_args, get_config
 from pychart.log import set_debug, info, debug
+from pychart.cb import cb
 import time
 
 # Add a print plot summary and a print of a YML to read ?
 # need to think about it
 
 def main():
-
+    print("")
+    
     # prepare config dictionary from input arguments
     args = parse_args()
 
@@ -36,12 +38,16 @@ def main():
     
     fb.build_layout()                 # builds figure + subplots + titles
 
+    # --- Create colorbar instance ---
+    map_cb = cb(cb_config)
+    print(map_cb)
+    
     # --- Loop through subplots ---
     for iax, ax in enumerate(fb.axes):
         # MAP
         if iax < len(map_config["files"]):
             debug(map_config)
-            map_cb, pcol = add_map_plot(map_config, cb_config, iax, ax)
+            pcol = add_map_plot(map_config, map_cb, iax, ax)
 
         # CONTOUR
         if (cnt_config["files"] and (iax < len(cnt_config["files"]))):
@@ -49,7 +55,7 @@ def main():
             add_cnt_plot(cnt_config, iax, ax)
 
     # --- Add colorbar using the class method ---
-    fb.add_colorbar(pcol,map_cb)
+    fb.add_colorbar(pcol, map_cb)
 
     plt.show()
 
