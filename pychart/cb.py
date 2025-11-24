@@ -24,6 +24,29 @@ class cb:
         add a colorbar to the plot
     """
 
+    def __str__(self):
+        # Determine the colormap name (matplotlib or cmocean)
+        cmap_name = getattr(self.cmap, 'name', str(self.cmap))
+
+        # Extract normalization type
+        norm_type = type(self.norm).__name__
+
+        # Summarize level range
+        lvl_min = self._lvls[0]
+        lvl_max = self._lvls[-1]
+        lvl_count = len(self._lvls)
+
+        return (
+            f"\n"
+            f"Colorbar:\n"
+            f"  Colormap     : {cmap_name}\n"
+            f"  Norm         : {norm_type}\n"
+            f"  Levels       : {lvl_count} levels from {lvl_min:g} to {lvl_max:g}\n"
+            f"  Extend       : {self.ext}\n"
+            f"  Units        : {self.unit}\n"
+            f"  Format       : {self.fmt}\n"
+        )
+
     def __init__(self,cmap,cnorm,cunit,cfmt,cext,lvls,cmo=False):
         self.unit=cunit
         self.fmt=cfmt
@@ -34,7 +57,6 @@ class cb:
         else:
             self._lvls=get_lvl(lvls)
 
-        print(cmap,cnorm)
         if cmo:
             self.cmap=eval(cmap)
         else:
@@ -66,9 +88,6 @@ class cb:
                'TwoSlopeNorm':colors.TwoSlopeNorm(vmin=self._lvls[0],vmax=self._lvls[2],vcenter=self._lvls[1])
               }
         return dnorm[cnorm]
-
-    def __str__(self):
-        return 'cb : {}, {}, {}'.format(self.unit,self.fmt,self.ext)
 
 def get_lvl(bnds):
     """

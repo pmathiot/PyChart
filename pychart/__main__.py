@@ -5,6 +5,7 @@ from pychart.plot import PlotData, add_map_plot, add_cnt_plot
 from pychart.figure import FigureBuilder  # <- new class file replacing buid_figure_layout, etc.
 from pychart import cb
 from pychart.cli import parse_args, sanity_checks_args, get_config
+from pychart.log import set_debug, info, debug
 import time
 
 # Add a print plot summary and a print of a YML to read ?
@@ -14,7 +15,14 @@ def main():
 
     # prepare config dictionary from input arguments
     args = parse_args()
+
+    # set debug mode if needed
+    set_debug(args.debug)
+
+    # sanity checks on input arguments
     args = sanity_checks_args(args)
+
+    # prepare config dictionary from input arguments
     pychart_config = get_config(args)
 
     # --- Build the figure using the new class ---
@@ -24,22 +32,21 @@ def main():
     cb_config = pychart_config["cb"]
 
     fb = FigureBuilder(config=figure_config)
+    print(fb)                         # print figure summary
+    
     fb.build_layout()                 # builds figure + subplots + titles
 
     # --- Loop through subplots ---
     for iax, ax in enumerate(fb.axes):
         # MAP
-        print(map_config)
         if iax < len(map_config["files"]):
+            debug(map_config)
             map_cb, pcol = add_map_plot(map_config, cb_config, iax, ax)
 
         # CONTOUR
-        print(cnt_config["files"])
         if (cnt_config["files"] and (iax < len(cnt_config["files"]))):
+            debug(cnt_config["files"])
             add_cnt_plot(cnt_config, iax, ax)
-
-#        else:
-#            ax.set_visible(False)
 
     # --- Add colorbar using the class method ---
     fb.add_colorbar(pcol,map_cb)

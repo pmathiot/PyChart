@@ -65,7 +65,7 @@ def parse_args():
                                       type=str  , nargs="+"  , default=['ant'], required=False)
     parser.add_argument("--crs"     , metavar='sampling value'           , help="sampling value (every ncrs pts)", \
                                       type=int  , nargs=1  , default=[1],        required=False)
-    parser.add_argument("--debug"   , metavar='box index [imin, imax, jmin, jmax]', help=" box index [imin, imax, jmin, jmax]", \
+    parser.add_argument("--noproj"   , metavar='box index [imin, imax, jmin, jmax]', help=" box index [imin, imax, jmin, jmax]", \
                                       type=int  , nargs=4  , required=False)
 
     parser.add_argument("--cntf"    , metavar='contour file'             , help="contour file list"              , \
@@ -103,6 +103,7 @@ def parse_args():
                                       type=str, nargs="+", required=False)
     parser.add_argument("--joffset" , metavar='offset on j'              , help="do not read the top j lines, it could be needed for some grid (ORCA like for example) and some projection", \
                                       type=int  , nargs=1  , default=[0],required=False)
+    parser.add_argument("--debug"   , action="store_true", help="Enable debug mode with detailed output.")
     return parser.parse_args()
 
 def fix_list(arg_list, nfile, name):

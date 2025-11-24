@@ -5,9 +5,40 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import importlib.resources as pkg_resources
 import pathlib
+from pychart.log import debug, info
 
 
 class FigureBuilder:
+    def __str__(self):
+        lines = []
+        lines.append("FigureBuilder:")
+        lines.append(f"  Output file : {self.output_file}")
+
+        # Layout
+        if "sp" in self.config:
+            lines.append(f"  Subplots    : {self.config['sp']}")
+
+        # Manual subplot locations
+        if self.ploc:
+            lines.append(f"  Custom subplot positions (ploc):")
+            for p in self.ploc:
+                lines.append(f"    - {p}")
+
+        # Projection description
+        if self.proj:
+            for i, proj in enumerate(self.proj):
+                pname = self.config["projection"][i] if "projection" in self.config else f"proj{i}"
+                lines.append(f"  Projections: {pname} ")
+                extent = self.extent[i] if i < len(self.extent) else None
+                if extent:
+                    lines.append(f"    extent: {extent[0]} ({extent[1]})")
+
+        # Title
+        if "title" in self.config:
+            lines.append(f"  Title       : {self.config['title']}")
+        lines.append("")
+
+        return "\n".join(lines)
     def __init__(self, config):
         self.config = config
         self.fig = None
@@ -18,7 +49,7 @@ class FigureBuilder:
         # Load projections
         self.projections = {}
         projections_yaml = str(pathlib.Path(__file__).parent)+"/pychart_projs.yml"
-        print(projections_yaml)
+        debug(projections_yaml)
         with open(projections_yaml, "r") as f:
             self.projections = yaml.safe_load(f)["projections"]
 
@@ -61,8 +92,8 @@ class FigureBuilder:
                 pltloc.append(gs[iplt // nisplt, iplt % nisplt])
 
         for iplt in range(len(self.proj)):
-            print(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]}")
-            print(pltloc[iplt])
+            info(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]} {pltloc[iplt]}")
+
             ax = self.fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
             extent= self.extent[iplt]
             if extent:
@@ -83,6 +114,7 @@ class FigureBuilder:
 
         self._add_title(self.config["title"], yoffset=0.025*nisplt/njsplt)
 
+        print("")
 
     def add_land_features(self, ax, features):
         feature_map = {
@@ -125,5 +157,5 @@ class FigureBuilder:
         cax.axis('off')
 
     def save_figure(self):
-        print(f"Saving figure to {self.output_file}")
+        info(f"Saving figure to {self.output_file}")
         self.fig.savefig(self.output_file, dpi=150)

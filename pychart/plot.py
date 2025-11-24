@@ -7,7 +7,8 @@ import xarray as xr
 from matplotlib.collections import PolyCollection
 from scipy.interpolate import griddata
 from pychart.io_utils import get_2d_data, get_latlon_var, get_2d_data
-from pychart import cb
+from pychart.cb import cb
+from pychart.log import info, debug
 import matplotlib.tri as tri
 from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
 
@@ -32,9 +33,10 @@ def add_map_plot(map_config, cb_config, iax, ax):
         tref=map_config["sprid"][iax],
         refop=map_config["op"][iax]
     )
+    print(map_data)
 
-        # get map colorbar
-    map_cb = cb.cb(
+    # get map colorbar
+    map_cb = cb(
         cb_config["colormap"], 
         cb_config["norm"],
         cb_config["units"],
@@ -43,6 +45,7 @@ def add_map_plot(map_config, cb_config, iax, ax):
         cb_config["levels"],
         cmo=cb_config["cmocean"]
         )
+    print(map_cb)
 
     if map_data.type == 'tri_unstructured':
         map_data = map_data.to_triunstructured()
@@ -50,8 +53,6 @@ def add_map_plot(map_config, cb_config, iax, ax):
         map_data = map_data.to_icounstructured()
     else:
         map_data = map_data.to_structured()
-
-    print(map_data.trun, map_data.tref, map_data.refop)
 
     map_data.get_coords()
     map_data.get_data()
@@ -87,11 +88,36 @@ def add_cnt_plot(cnt_config, iax, ax):
     cnt_data.get_coords()
     cnt_data.get_data()
     cnt_data.compute_data()
-    print(cnt_data.lvls)
     cntlvl=cb.get_lvl(cnt_data.lvls)
     cnt_data.plot_cnt(ax, levels=cntlvl, colors='k', linewidths=1)
 
 class PlotData:
+    def __str__(self):
+        lines = []
+        lines.append("PlotData:")
+        lines.append("  Simulation field:")
+        lines.append(f"    files    : {self.file}")
+        lines.append(f"    vars     : {self.var}")
+        lines.append(f"    levels   : {self.lvls}")
+        lines.append(f"    jk, kt   : {self.jk}, {self.kt}")
+        lines.append(f"    scale    : {self.sf}")
+        lines.append(f"    type     : {self.type}")
+        lines.append(f"    name     : {self.trun}")
+
+        # Reference field section
+        if self.fileref is not None:
+            lines.append(" ")
+            lines.append("  Reference field:")
+            lines.append(f"    fileref  : {self.fileref}")
+            lines.append(f"    varref   : {self.varref}")
+            lines.append(f"    jkref    : {self.jkref}")
+            lines.append(f"    kt       : {self.ktref}")
+            lines.append(f"    refop    : {self.refop}")
+            lines.append(f"    scale    : {self.sfref}")
+            lines.append(f"    name     : {self.tref}")
+
+        return "\n".join(lines)
+    
     def __init__(self, file, var, lvls=None, jk=1, kt=1, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
         
         self.file = file          # Main data file
@@ -114,7 +140,6 @@ class PlotData:
         self.tref = tref      # Title for the variable
 
         self.type = self._init_type()  # Data type: 'structured' or 'unstructured'
-        print(f"Initialized PlotData with type: {self.type}")
 
     def _init_type(self):
         """
@@ -133,7 +158,7 @@ class PlotData:
 
         # Look for any dimension that includes "vertex"
         vertex_dims = [d for d in dimnames if "vertex" in d]
-        print(f"Detected vertex dimensions: {vertex_dims}", len(ds.dimensions[vertex_dims[0]]))
+        debug(f"Detected vertex dimensions: {vertex_dims}, {len(ds.dimensions[vertex_dims[0]])}")
         if vertex_dims:
             # Take the first one (usually only one)
             vertex_dim = vertex_dims[0]
@@ -165,14 +190,10 @@ class PlotData:
         """
         Compute the data to be plotted, applying the operation with reference data if provided.
         """
-        print(f" Computing data for variable '{self.var}' from file '{self.file}'", self.sf)
-        print(self)
+        info(f" Computing data ...")
         if self.dataref is not None:
-            print('dataref present')
             if self.refop == "-":
-                print('compute diff')
                 self.data = (self.data * self.sf) - (self.dataref * self.sfref)
-                print(self.data.max)
             elif self.refop == "/":
                 self.data = (self.data * self.sf) / (self.dataref * self.sfref)
         else :
@@ -242,7 +263,6 @@ class StructuredPlotData(PlotData):
         """
         self.data = get_2d_data(self.file, self.var, klvl=self.jk, ktime=self.kt, offsety=joffset)
         if self.fileref and self.varref:
-            print('load dataref')
             self.dataref = get_2d_data(self.fileref, self.varref, klvl=self.jkref, ktime=self.ktref, offsety=joffset)
 
     def get_coords(self, mesh_file=None, joffset=0):
@@ -270,7 +290,10 @@ class StructuredPlotData(PlotData):
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
-        print(f" Plotting data on map with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
+        
+        info(" Plotting pcolor map ...")
+        debug(f" Plotting pcolor map with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
+        print("")
         pcm = ax.pcolormesh(self.lon, self.lat, self.data, cmap=map_cb.cmap, norm=map_cb.norm, transform=ccrs.PlateCarree(), **kwargs)
         return pcm
 
@@ -314,7 +337,7 @@ class TriUnStructuredPlotData(PlotData):
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
-        print(f" Plotting data on map with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
+        debug(f" Plotting data on map with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
         # Precompute projection of nodes
         xy = ax.projection.transform_points(ccrs.Geodetic(), self.lon, self.lat)
         x, y = xy[:, 0], xy[:, 1]
@@ -325,7 +348,6 @@ class TriUnStructuredPlotData(PlotData):
         if is_global:
             # Only for global projections, compute seam mask
             central_lon = ax.projection.proj4_params.get('lon_0', 0.0)
-            print('central_lon',central_lon)
             lon_shifted = ((self.lon - central_lon + 180) % 360) - 180
             lontri = lon_shifted[self.tri]
             mask = np.ptp(lontri, axis=1) > 180
@@ -347,7 +369,7 @@ class TriUnStructuredPlotData(PlotData):
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
-        print(f" Plotting data on cnt with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
+        debug(f" Plotting data on cnt with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
 
         if len(self.data) != len(self.lon) :
             data_nodal = self.elemental_to_nodal()
@@ -364,7 +386,6 @@ class TriUnStructuredPlotData(PlotData):
         if is_global:
             # Only for global projections, compute seam mask
             central_lon = ax.projection.proj4_params.get('lon_0', 0.0)
-            print('central_lon',central_lon)
             lon_shifted = ((self.lon - central_lon + 180) % 360) - 180
             lontri = lon_shifted[self.tri]
             mask = np.ptp(lontri, axis=1) > 180
@@ -443,7 +464,7 @@ class IcoUnStructuredPlotData(PlotData):
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
-        print(f" Plotting data on map with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
+        debug(f" Plotting data on map with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
  
         # --- 1️⃣ Project polygon vertices once ---
         xy = ax.projection.transform_points(ccrs.Geodetic(), self.bnds_lon, self.bnds_lat)
@@ -452,7 +473,7 @@ class IcoUnStructuredPlotData(PlotData):
 
         # --- 2️⃣ Get visible geographic extent ---
         lon_min, lon_max, lat_min, lat_max = ax.get_extent(crs=ccrs.PlateCarree())
-        print(f"Visible extent: lon=[{lon_min:.1f}, {lon_max:.1f}], lat=[{lat_min:.1f}, {lat_max:.1f}]")
+        info(f"Visible extent: lon=[{lon_min:.1f}, {lon_max:.1f}], lat=[{lat_min:.1f}, {lat_max:.1f}]")
 
         # --- 3️⃣ Fast visibility pre-filter ---
         poly_lon_min = self.bnds_lon.min(axis=1)
@@ -464,13 +485,12 @@ class IcoUnStructuredPlotData(PlotData):
             (poly_lon_max >= lon_min) & (poly_lon_min <= lon_max) &
             (poly_lat_max >= lat_min) & (poly_lat_min <= lat_max)
         )
-        print(f"→ Keeping {np.sum(visible_mask)} of {len(visible_mask)} polygons visible")
+        debug(f"→ Keeping {np.sum(visible_mask)} of {len(visible_mask)} polygons visible")
 
         # --- 4️⃣ Compute seam mask only for global projections ---
         is_global = not isinstance(ax.projection, (Stereographic, NorthPolarStereo, SouthPolarStereo))
         if is_global:
             central_lon = ax.projection.proj4_params.get('lon_0', 0.0)
-            print(f"central_lon = {central_lon}")
             bnds_lon_shifted = ((self.bnds_lon - central_lon + 180) % 360) - 180
             seam_mask = np.ptp(bnds_lon_shifted, axis=1) > 180
         else:
@@ -478,7 +498,7 @@ class IcoUnStructuredPlotData(PlotData):
 
         # --- 5️⃣ Combine both masks ---
         final_mask = visible_mask & (~seam_mask)
-        print(f"→ Final polygons kept: {np.sum(final_mask)}")
+        debug(f"→ Final polygons kept: {np.sum(final_mask)}")
 
         # --- 6️⃣ Build visible polygons and data ---
         visible_indices = np.where(final_mask)[0]
@@ -504,7 +524,7 @@ class IcoUnStructuredPlotData(PlotData):
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
-        print(f" Plotting data on cnt with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
+        debug(f" Plotting data on cnt with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
 
         # 1️⃣ Get geographic extent in lat/lon
         lon_min, lon_max, lat_min, lat_max = ax.get_extent(crs=ccrs.PlateCarree())

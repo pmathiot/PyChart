@@ -2,6 +2,7 @@ import numpy as np
 import netCDF4 as nc
 import re
 import sys
+from pychart.log import debug, info
 
 def load_data(file_path):
     # Placeholder for loading data (e.g., from NetCDF)
@@ -93,10 +94,7 @@ def get_dims(cfile):
 
 # get_2d_data
 def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
-    print(' reading '+cvar+' in '+cfile+' ...')
-    #if (klvl > 0) and (ktime > 0) :
-    #    print('error klvl or ktime larger than 0 (klvl = '+str(klvl)+', ktime = '+str(ktime)+')')
-    #    sys.exit(42)
+    info(' reading '+cvar+' in '+cfile+' ...')
 
     nx,ny,_,_=get_dims(cfile)
     if not offsety:
@@ -108,7 +106,7 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
     ncid.set_auto_maskandscale(lmask)
     clvar   = get_name(cvar,ncid.variables.keys())
     var    = ncid.variables[clvar]
-    print(var.shape)
+
     shape  = get_variable_shape(var)
 
     dslice={
@@ -117,6 +115,8 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
             'XYZ' :(                          slice(klvl-1,klvl,None),slice(0,offsety,None),slice(0,None,None) ),
             'XYZT':(slice(ktime-1,ktime,None),slice(klvl-1,klvl,None),slice(0,offsety,None),slice(0,None,None) )
            }
+
+    debug(f"Data shape: {var.shape}, type: {shape}")
 
     if shape=='X' :
         print(' 1d variable X => extend it 2d')
@@ -138,6 +138,6 @@ def get_2d_data(cfile,cvar,ktime=0,klvl=0,offsety=None,lmask=True):
 
     ncid.close()
 
-    print(' '+cvar+' read: shape = ',dat2d.shape,' shape expected = (',ny,',',nx,')',' real shape = ',dat2d.shape,' ',shape, dslice[shape], ktime, klvl)
+    debug(f" {cvar} read: shape = {dat2d.shape} shape expected = ({ny},{nx}) real shape = {dat2d.shape} shape, {dslice[shape]}, {ktime}, {klvl}")
 
     return dat2d
