@@ -92,8 +92,8 @@ class FigureBuilder:
                 pltloc.append(gs[iplt // nisplt, iplt % nisplt])
 
         for iplt in range(len(self.proj)):
-            info(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]} {pltloc[iplt]}")
-
+            debug(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]} {pltloc[iplt]}")
+            info(f"Creating subplot {iplt+1}/{nplt} with projection {self.config["projection"][iplt]}")
             ax = self.fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
             extent= self.extent[iplt]
             if extent:

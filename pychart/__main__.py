@@ -14,7 +14,7 @@ import time
 
 def main():
     print("")
-    
+
     # prepare config dictionary from input arguments
     args = parse_args()
 
@@ -44,6 +44,8 @@ def main():
     
     # --- Loop through subplots ---
     for iax, ax in enumerate(fb.axes):
+        info(f"Processing subplot {iax+1}/{len(fb.axes)}")
+        print()
         # MAP
         if iax < len(map_config["files"]):
             debug(map_config)

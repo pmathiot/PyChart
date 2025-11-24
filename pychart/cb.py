@@ -37,7 +37,6 @@ class cb:
         lvl_count = len(self._lvls)
         
         return (
-            f"\n"
             f"Colorbar:\n"
             f"  Colormap     : {cmap_name}\n"
             f"  Norm         : {norm_type}\n"
@@ -49,7 +48,6 @@ class cb:
 
     def __init__(self,config):
         # get map colorbar
-        print(config)
         self.unit=config["units"]
         self.fmt=config["fmt"]
         self.ext=config["extend"]
