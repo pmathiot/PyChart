@@ -1,109 +1,140 @@
 import argparse
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="PyChart Command-Line Tool")
-    parser.add_argument("--dir"     , metavar='data_dir'                 , help="data dir"                       , \
-                                      type=str  , nargs=1  , default=['./']    , required=False)
-    parser.add_argument("--mapf"    , metavar='pcolor_file_names'        , help="names of input files"           , \
-                                      type=str  , nargs="+", required=True )
-    parser.add_argument("--mapv"    , metavar='pcolor_var_names'         , help="variable list"                  , \
-                                      type=str  , nargs="+", required=True )
-    parser.add_argument("--mapreff" , metavar='pcolor_ref_file_name'     , help="names of ref   files"           , \
-                                      type=str  , nargs="+", required=False)
-    parser.add_argument("--maprefv" , metavar='pcolor_ref_var_name'      , help="reference variable name"        , \
-                                      type=str  , nargs="+", required=False)
-    parser.add_argument("--maprefjt"   , metavar='pcolor_jt_ref_file'    , help="time frame in fortran convention", \
-                                      type=int  , nargs='+'  , default=[1], required=False)
-    parser.add_argument("--maprefop", metavar='pcolor_ref_operation'     , help="operation made for copmarison"  , \
-                                      type=str  , nargs=1  , default=[None]     , choices=[None,'-','/'], required=False)
-    parser.add_argument("--maprefsf", metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
-                                      type=float, nargs='+', default=[1.0]     , required=False)
-    parser.add_argument("--mapsf"   , metavar='pcolor_scale_factor'      , help="map data scale factor"          , \
-                                      type=float, nargs="+", default=[1.0]     , required=False)
-    parser.add_argument("--mapjt"   , metavar='pcolor_jt'                , help="time frame in fortran convention", \
-                                      type=int  , nargs='+'  , default=[1], required=False)
 
-    group_map = parser.add_mutually_exclusive_group(required=False)
-    group_map.add_argument("--mapz"    , metavar='pcolor_z_depth'           , help="depth of the map"               , \
-                                      type=float, nargs=1  , default=[1.0], required=False)
-    group_map.add_argument("--mapjk"   , metavar='pcolor_jk_depth'          , help="level in fortran convention"    , \
-                                      type=int  , nargs=1  , default=[1], required=False)
+    parser = argparse.ArgumentParser(
+        description=(
+            "PyChart Command-Line Tool\n\n"
+            "Minimal required arguments for a basic call:\n"
+            "  --mapf FILES --mapv VARS\n"
+            "Other arguments are optional and grouped by function below."
+        ),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
 
-    parser.add_argument("--cbn"     , metavar='colormap_name'            , help="color map name"                 , \
-                                      type=str  , nargs=1  , default=['viridis']   , required=False)
-    parser.add_argument('--cbcmo'   , help='use cmocean colorbar'     , action="store_true", default=False, required=False)
-    parser.add_argument("--cblvl"   , metavar='colorbar_range'           , help="color range"                    , \
-                                      type=float, nargs="+", required=True )
-    parser.add_argument("--cbnorm"  , metavar='colorbar_norm_method'     , help="color map method (LogNorm, Normalize, BoundaryNorm, TwoSlopeNorm)", \
-                                      type=str, nargs=1, default=['BoundaryNorm'], choices=['BoundaryNorm','LogNorm','Normalize','TwoSlopeNorm'], required=False )
-    parser.add_argument("--cbu"     , metavar='colorbar_unit'            , help="colorbar unit"                  , \
-                                      type=str  , nargs=1  , default=['']      , required=False)
-    parser.add_argument("--cbfmt"   , metavar='colorbar_fmt'             , help="colorbar format"                , \
-                                      type=str  , nargs=1  , default=['%5.2f'] , required=False)
-    parser.add_argument("--cbext"   , metavar='colorbar_extend'          , help="colorbar extend"                , \
-                                      type=str  , nargs=1  , default=['both'], choices=['both', 'neither', 'max', 'min']  , required=False)
+    # ------------------------- Required Arguments -------------------------
+    required_group = parser.add_argument_group("Required arguments for minimal call")
+    required_group.add_argument(
+        "--mapf", metavar='FILES', type=str, nargs='+', required=True,
+        help="Input data file(s) for the main variable"
+    )
+    required_group.add_argument(
+        "--mapv", metavar='VARS', type=str, nargs='+', required=True,
+        help="Variable name(s) in the input files"
+    )
 
-    parser.add_argument("--ft"      , metavar='figure_title'             , help="title of the whole figure"      , \
-                                      type=str  , nargs=1  , default=['']      , required=False)
-    parser.add_argument("--spfid"   , metavar='runid'                    , help="runids (title + mesh name)"     , \
-                                      type=str  , nargs="+", default=['']      , required=False)
-    parser.add_argument("--sprid"   , metavar='refid'                    , help="refids (title + mesh name)"     , \
-                                      type=str  , nargs="+",                     required=False)
-    parser.add_argument("--mask"    , metavar='mask file name'           , help="mask file name"                 , \
-                                      type=str  , nargs="+", required=False)
-    parser.add_argument("--mesh"    , metavar='mesh file name'           , help="mesh file name"                 , \
-                                      type=str  , nargs="+", required=False)
-    parser.add_argument("--llonce"  , metavar='read lat/lon each time'   , help="read lat/lon for each plot [0=no]", \
-                                      type=int, nargs=1  , default=[0]   , choices=[0, 1]    , required=False)
-    parser.add_argument("--sp"      , metavar='subplot disposition'      , help="subplot disposition (ixj)"      , \
-                                      type=str  , nargs=1  , default=['1x1']   , required=False)
-    parser.add_argument("--ploc"    , metavar='gridspec indices'         , help="[0,2,0,3] : position x0,x1,y0,y1 in the plot grid", \
-                                      type=str  , nargs="+",                 required=False)
-    parser.add_argument("-o"        , metavar='output name'              , help="output name"                    , \
-                                      type=str  , nargs=1  , default=['figure'], required=False)
-    parser.add_argument("-p"        , metavar='projection'               , help="projection"                     , \
-                                      type=str  , nargs="+"  , default=['ant'], required=False)
-    parser.add_argument("--crs"     , metavar='sampling value'           , help="sampling value (every ncrs pts)", \
-                                      type=int  , nargs=1  , default=[1],        required=False)
-    parser.add_argument("--noproj"   , metavar='box index [imin, imax, jmin, jmax]', help=" box index [imin, imax, jmin, jmax]", \
-                                      type=int  , nargs=4  , required=False)
+    # ------------------------- Map Options -------------------------
+    map_group = parser.add_argument_group("Map options")
+    map_group.add_argument("--dir", metavar='DATA_DIR', type=str, nargs=1, default=['./'],
+                           help="Directory containing data files")
+    map_group.add_argument("--mapreff", metavar='REF_FILES', type=str, nargs='+',
+                           help="Reference file(s) for comparison")
+    map_group.add_argument("--maprefv", metavar='REF_VARS', type=str, nargs='+',
+                           help="Reference variable(s)")
+    map_group.add_argument("--maprefop", metavar='REF_OP', type=str, nargs=1, default=[None],
+                           choices=[None,'-','/'], help="Operation for comparison with reference")
+    map_group.add_argument("--mapsf", metavar='SCALE', type=float, nargs='+', default=[1.0],
+                           help="Scale factor for main data")
+    map_group.add_argument("--maprefsf", metavar='REF_SCALE', type=float, nargs='+', default=[1.0],
+                           help="Scale factor for reference data")
+    map_group.add_argument("--mapjt", metavar='TIME', type=int, nargs='+', default=[1],
+                           help="Time frame(s) in Fortran convention")
+    map_group.add_argument("--maprefjt", metavar='REF_TIME', type=int, nargs='+', default=[1],
+                           help="Reference time frame(s) in Fortran convention")
 
-    parser.add_argument("--cntf"    , metavar='contour file'             , help="contour file list"              , \
-                                      type=str  , nargs="+", required=False)
-    parser.add_argument("--cntv"    , metavar='contour var '             , help="contour variable"               , \
-                                      type=str  , nargs=1  , required=False)
-    parser.add_argument("--cntreff" , metavar='contour ref file'         , help="contour reference file"         , \
-                                      type=str  , nargs=1  , required=False)
-    parser.add_argument("--cntrefv" , metavar='contour ref var '         , help="contour reference variable"     , \
-                                      type=str  , nargs=1  , required=False)
-    parser.add_argument("--cntrefop", metavar='contour_ref_operation'     , help="operation made for comparison"  , \
-                                      type=str  , nargs=1  , default=[None]     , choices=[None,'-','/'], required=False)
-    parser.add_argument("--cntsf"   , metavar='contour data scale factor', help="contour data scale factor"      , \
-                                      type=float, nargs=1  , default=[1.0]    , required=False)
-    parser.add_argument("--cntrefsf"   , metavar='contour reference data scale factor', help="contour reference data scale factor"      , \
-                                      type=float, nargs=1  , default=[1.0]    , required=False)
-    parser.add_argument("--cntjt"   , metavar='contour_data_jt'                , help="time frame in fortran convention", \
-                                      type=int  , nargs='+'  , default=[1], required=False)
+    # Mutually exclusive: depth or level
+    map_depth_group = parser.add_mutually_exclusive_group()
+    map_depth_group.add_argument("--mapz", metavar='DEPTH', type=float, nargs=1, default=[1.0],
+                                 help="Depth of the map (in meters)")
+    map_depth_group.add_argument("--mapjk", metavar='LEVEL', type=int, nargs=1, default=[1],
+                                 help="Level in Fortran convention")
 
-    group_cnt = parser.add_mutually_exclusive_group(required=False)
-    group_cnt.add_argument("--cntjk"   , metavar='contour jk level'         , help="contour jk level "              , \
-                                      type=int  , nargs=1  , required=False)
-    group_cnt.add_argument("--cntz"    , metavar='contour depth in m'       , help="contour depth in m"             , \
-                                      type=float, nargs=1  , required=False)
+    # ------------------------- Colormap Options -------------------------
+    cb_group = parser.add_argument_group("Colormap options")
+    cb_group.add_argument("--cbn", metavar='COLORMAP', type=str, nargs=1, default=['viridis'],
+                          help="Colormap name (matplotlib)")
+    cb_group.add_argument("--cbcmo", action="store_true", default=False,
+                          help="Use cmocean colormap instead of matplotlib")
+    cb_group.add_argument("--cblvl", metavar='LEVELS', type=float, nargs='+', default=None,
+                          help="Colorbar levels or range")
+    cb_group.add_argument("--cbnorm", metavar='NORM', type=str, nargs=1,
+                          choices=['BoundaryNorm','LogNorm','Normalize','TwoSlopeNorm'], default=['BoundaryNorm'],
+                          help="Normalization method for color mapping")
+    cb_group.add_argument("--cbu", metavar='UNIT', type=str, nargs=1, default=[''],
+                          help="Colorbar unit")
+    cb_group.add_argument("--cbfmt", metavar='FORMAT', type=str, nargs=1, default=['%5.2f'],
+                          help="Colorbar format")
+    cb_group.add_argument("--cbext", metavar='EXTEND', type=str, nargs=1,
+                          choices=['both', 'neither', 'max', 'min'], default=['both'],
+                          help="Colorbar extend")
 
-    parser.add_argument("--cntlvl"  , metavar='contour line level'       , help="contour line level"             , \
-                                      type=float, nargs="+", required=False)
-    parser.add_argument("--bathyf"  , metavar='bathy file'               , help="bathy file"                     , \
-                                      type=str  , nargs="+", required=False)
-    parser.add_argument("--bathyv"  , metavar='bathy var '               , help="contour variable"               , \
-                                      type=str  , nargs=1  , required=False)
-    parser.add_argument("--bathylvl", metavar='contour line level'       , help="contour line level"             , \
-                                      type=float, nargs="+", required=False)
-    parser.add_argument("--secf"    , metavar='section line file list '  , help="section file list describing section to plot", \
-                                      type=str, nargs="+", required=False)
-    parser.add_argument("--joffset" , metavar='offset on j'              , help="do not read the top j lines, it could be needed for some grid (ORCA like for example) and some projection", \
-                                      type=int  , nargs=1  , default=[0],required=False)
-    parser.add_argument("--debug"   , action="store_true", help="Enable debug mode with detailed output.")
+    # ------------------------- Contour Options -------------------------
+    cnt_group = parser.add_argument_group("Contour options")
+    cnt_group.add_argument("--cntf", metavar='FILES', type=str, nargs='+',
+                           help="Contour data files")
+    cnt_group.add_argument("--cntv", metavar='VARS', type=str, nargs=1,
+                           help="Contour variable")
+    cnt_group.add_argument("--cntreff", metavar='REF_FILES', type=str, nargs=1,
+                           help="Reference contour file")
+    cnt_group.add_argument("--cntrefv", metavar='REF_VARS', type=str, nargs=1,
+                           help="Reference contour variable")
+    cnt_group.add_argument("--cntrefop", metavar='REF_OP', type=str, nargs=1, default=[None],
+                           choices=[None,'-','/'], help="Operation for contour comparison")
+    cnt_group.add_argument("--cntsf", metavar='SCALE', type=float, nargs=1, default=[1.0],
+                           help="Contour data scale factor")
+    cnt_group.add_argument("--cntrefsf", metavar='REF_SCALE', type=float, nargs=1, default=[1.0],
+                           help="Contour reference scale factor")
+    cnt_group.add_argument("--cntjt", metavar='TIME', type=int, nargs='+', default=[1],
+                           help="Contour time frames")
+
+    # Mutually exclusive: contour depth or level
+    cnt_depth_group = parser.add_mutually_exclusive_group()
+    cnt_depth_group.add_argument("--cntz", metavar='DEPTH', type=float, nargs=1,
+                                 help="Contour depth (meters)")
+    cnt_depth_group.add_argument("--cntjk", metavar='LEVEL', type=int, nargs=1,
+                                 help="Contour depth level")
+
+    cnt_group.add_argument("--cntlvl", metavar='LEVELS', type=float, nargs='+',
+                           help="Contour line levels")
+
+    # ------------------------- Figure Layout Options -------------------------
+    fig_group = parser.add_argument_group("Figure layout options")
+    fig_group.add_argument("--ft", metavar='TITLE', type=str, nargs=1, default=[''],
+                           help="Figure title")
+    fig_group.add_argument("--spfid", metavar='RUNID', type=str, nargs='+', default=[''],
+                            help="Run ID(s) for main data (used in figure title)")
+    fig_group.add_argument("--sprid", metavar='REFID', type=str, nargs='+', default=[''],
+                            help="Reference run ID(s) for comparison (used in figure title)")
+    fig_group.add_argument("--sp", metavar='SUBPLOTS', type=str, nargs=1, default=['1x1'],
+                           help="Subplot layout (ixj)")
+    fig_group.add_argument("--ploc", metavar='GRID', type=str, nargs='+',
+                           help="Custom subplot location in gridspec: [x0,x1,y0,y1]")
+    fig_group.add_argument("-o", metavar='OUTPUT', type=str, nargs=1, default=['figure'],
+                           help="Output file name")
+    fig_group.add_argument("-p", metavar='PROJ', type=str, nargs='+', default=['ant'],
+                           help="Projection name(s)")
+    fig_group.add_argument("--crs", metavar='N', type=int, nargs=1, default=[1],
+                           help="Sampling value (every n-th point)")
+    fig_group.add_argument("--noproj", metavar='BOX', type=int, nargs=4,
+                           help="Box index for subregion: imin imax jmin jmax")
+    fig_group.add_argument("--joffset", metavar='OFFSET', type=int, nargs=1, default=[0],
+                           help="Offset on j (do not read top j lines, useful for ORCA grids)")
+
+    # ------------------------- Bathymetry and Sections -------------------------
+    bathy_group = parser.add_argument_group("Bathy & Sections")
+    bathy_group.add_argument("--bathyf", metavar='FILES', type=str, nargs='+', help="Bathy file(s)")
+    bathy_group.add_argument("--bathyv", metavar='VARS', type=str, nargs=1, help="Bathy variable")
+    bathy_group.add_argument("--bathylvl", metavar='LEVELS', type=float, nargs='+', help="Bathy contour levels")
+    bathy_group.add_argument("--secf", metavar='FILES', type=str, nargs='+', help="Section line files to plot")
+
+    # ------------------------- Misc -------------------------
+    misc_group = parser.add_argument_group("Miscellaneous")
+    misc_group.add_argument("--mask", metavar='FILES', type=str, nargs='+', help="Mask file(s)")
+    misc_group.add_argument("--mesh", metavar='FILES', type=str, nargs='+', help="Mesh file(s)")
+    misc_group.add_argument("--llonce", metavar='0/1', type=int, nargs=1, default=[0],
+                            choices=[0,1], help="Read lat/lon for each plot (1=yes)")
+    misc_group.add_argument("--debug", action="store_true", help="Enable debug mode with detailed output")
+
     return parser.parse_args()
 
 def fix_list(arg_list, nfile, name):

@@ -59,10 +59,10 @@ def main():
     # --- Add colorbar using the class method ---
     fb.add_colorbar(pcol, map_cb)
 
-    plt.show()
-
     fb.save_figure()
 
+    info(f"Display figure ...")
+    plt.show()
 
 if __name__ == "__main__":
     main()

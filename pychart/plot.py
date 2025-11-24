@@ -45,6 +45,10 @@ def add_map_plot(map_config, map_cb, iax, ax):
     map_data.get_coords()
     map_data.get_data()
     map_data.compute_data()
+
+    # update lvls for colorbar if not provided
+    # TOADD
+    
     pcol = map_data.plot_map(ax, map_cb)  # returns QuadMesh or similar for colorbar
     map_data.add_title(ax)
 
