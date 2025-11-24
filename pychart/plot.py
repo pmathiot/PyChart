@@ -48,7 +48,12 @@ def add_map_plot(map_config, map_cb, iax, ax):
 
     # update lvls for colorbar if not provided
     # TOADD
-    
+    if map_cb.lvls is None:
+        info(" Setting colorbar levels from data min/max ...")
+        map_cb.get_lvl([map_data.data.min(), map_data.data.max()])
+        map_cb.compute_norm()
+        info(f" Colorbar min/max set to {map_cb.lvls[0]:g} / {map_cb.lvls[-1]:g}")
+
     pcol = map_data.plot_map(ax, map_cb)  # returns QuadMesh or similar for colorbar
     map_data.add_title(ax)
 
