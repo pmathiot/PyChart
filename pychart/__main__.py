@@ -29,15 +29,17 @@ def main():
     # --- Loop through subplots ---
     for iax, ax in enumerate(fb.axes):
         # MAP
+        print(map_config)
         if iax < len(map_config["files"]):
             map_cb, pcol = add_map_plot(map_config, cb_config, iax, ax)
 
         # CONTOUR
-        if iax < len(cnt_config["files"]):
+        print(cnt_config["files"])
+        if (cnt_config["files"] and (iax < len(cnt_config["files"]))):
             add_cnt_plot(cnt_config, iax, ax)
 
-        else:
-            ax.set_visible(False)
+#        else:
+#            ax.set_visible(False)
 
     # --- Add colorbar using the class method ---
     fb.add_colorbar(pcol,map_cb)

@@ -161,15 +161,19 @@ class PlotData:
         ax.set_title(ctitle,fontsize=18)
 
 
-    def compute_data(self, operation=None):
+    def compute_data(self):
         """
         Compute the data to be plotted, applying the operation with reference data if provided.
         """
         print(f" Computing data for variable '{self.var}' from file '{self.file}'", self.sf)
+        print(self)
         if self.dataref is not None:
-            if operation == "-":
+            print('dataref present')
+            if self.refop == "-":
+                print('compute diff')
                 self.data = (self.data * self.sf) - (self.dataref * self.sfref)
-            elif operation == "/":
+                print(self.data.max)
+            elif self.refop == "/":
                 self.data = (self.data * self.sf) / (self.dataref * self.sfref)
         else :
             self.data = self.data * self.sf
@@ -238,6 +242,7 @@ class StructuredPlotData(PlotData):
         """
         self.data = get_2d_data(self.file, self.var, klvl=self.jk, ktime=self.kt, offsety=joffset)
         if self.fileref and self.varref:
+            print('load dataref')
             self.dataref = get_2d_data(self.fileref, self.varref, klvl=self.jkref, ktime=self.ktref, offsety=joffset)
 
     def get_coords(self, mesh_file=None, joffset=0):
