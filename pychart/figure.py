@@ -74,7 +74,7 @@ class FigureBuilder:
                     else:
                         ax.set_extent(extent[0], extent[1])
             ax.gridlines()
-            self.add_land_features(ax, ['isf', 'lakes', 'land'])
+            self.add_land_features(ax, ['isf', 'lakes', 'land', 'bathy'])
             self.axes.append(ax)
 
             # remove extra white space
@@ -86,6 +86,7 @@ class FigureBuilder:
 
     def add_land_features(self, ax, features):
         feature_map = {
+            'bathy': cfeature.NaturalEarthFeature('physical', 'bathymetry_J_1000', '10m', facecolor='none'),
             'isf': cfeature.NaturalEarthFeature('physical', 'antarctic_ice_shelves_polys', '50m', facecolor='none'),
             'lakes': cfeature.NaturalEarthFeature('physical', 'lakes', '50m', facecolor='none'),
             'coast': cfeature.NaturalEarthFeature('physical', 'coastline', '50m', facecolor='none'),
@@ -99,7 +100,7 @@ class FigureBuilder:
         cax = plt.axes([boxxy[2]+cboffset, boxxy[1], cbw, boxxy[3]-boxxy[1]])
         cbar = plt.colorbar(pcol, cax=cax, format=map_cb.fmt, extend=map_cb.ext)
         cbar.ax.tick_params(labelsize=fontsize)
-        cbar.ax.set_title(map_cb.unit,fontsize=fontsize,y=1.0)
+        cbar.ax.set_title(map_cb.unit,fontsize=fontsize,y=1.05)
         return cbar
 
     # --- helper methods ---
