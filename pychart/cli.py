@@ -5,8 +5,26 @@ from .figure import FigureBuilder
 from .log import set_debug, info, debug
 from .cb import cb
 
-def parse_args():
+"""
+cli.py
 
+This module provides the command-line interface (CLI) for the PyChart application. It includes functions for parsing arguments, performing sanity checks, and building the configuration for generating plots.
+
+Functions:
+- parse_args(): Parses command-line arguments and returns them as a namespace.
+- fix_list(arg_list, nfile, name): Ensures argument lists match the required length.
+- sanity_checks_args(args): Performs sanity checks and fixes inconsistencies in the parsed arguments.
+- get_config(args): Builds the configuration dictionary from the parsed arguments.
+- main(): The main entry point for the CLI, orchestrating the figure generation process.
+"""
+
+def parse_args():
+    """
+    Parse command-line arguments for the PyChart application.
+
+    Returns:
+    - argparse.Namespace: Parsed arguments as a namespace.
+    """
     parser = argparse.ArgumentParser(
         description=(
             "PyChart Command-Line Tool\n\n"
@@ -116,12 +134,12 @@ def parse_args():
                            help="Custom subplot location in gridspec: [x0,x1,y0,y1]")
     fig_group.add_argument("-o", metavar='OUTPUT', type=str, nargs=1, default=['figure'],
                            help="Output file name")
-    fig_group.add_argument("-p", metavar='PROJ', type=str, nargs='+', default=['ant'],
-                           help="Projection name(s)")
+    fig_group.add_argument("-p", metavar='PROJ', type=str, nargs='+', default="noproj",
+                            help="Projection name(s)")
+    fig_group.add_argument("--projbox", metavar='BOX', type=int, nargs=4, default=None,
+                            help="Box index for subregion: imin imax jmin jmax")
     fig_group.add_argument("--crs", metavar='N', type=int, nargs=1, default=[1],
                            help="Sampling value (every n-th point)")
-    fig_group.add_argument("--noproj", metavar='BOX', type=int, nargs=4,
-                           help="Box index for subregion: imin imax jmin jmax")
     fig_group.add_argument("--joffset", metavar='OFFSET', type=int, nargs=1, default=[0],
                            help="Offset on j (do not read top j lines, useful for ORCA grids)")
 
@@ -144,11 +162,22 @@ def parse_args():
 
 def fix_list(arg_list, nfile, name):
     """
-    Ensure argument list matches nfile length.
-    If one element is given, replicate it nfile times.
-    If None or empty:
-      - if required=True, raise error
-      - else fill with default (replicated nfile times)
+    Ensure argument list matches the required length.
+
+    If one element is given, replicate it nfile times. If None or empty:
+    - If required=True, raise an error.
+    - Otherwise, fill with default (replicated nfile times).
+
+    Parameters:
+    - arg_list (list): The argument list to validate.
+    - nfile (int): The required length of the list.
+    - name (str): The name of the argument (for error messages).
+
+    Returns:
+    - list: The validated and adjusted argument list.
+
+    Raises:
+    - ValueError: If the argument list length is invalid.
     """
     # Normalize None → []
     if arg_list is None:
@@ -164,6 +193,15 @@ def fix_list(arg_list, nfile, name):
     return arg_list
 
 def sanity_checks_args(args):
+    """
+    Perform sanity checks and fix inconsistencies in the parsed arguments.
+
+    Parameters:
+    - args (argparse.Namespace): Parsed arguments as a namespace.
+
+    Returns:
+    - argparse.Namespace: The updated arguments with fixed inconsistencies.
+    """
     # --- fix list consistency for map arguments ---
     nfile_map = len(args.mapf) if args.mapf else 0
     if nfile_map > 0:
@@ -207,11 +245,21 @@ def sanity_checks_args(args):
     return args
 
 def get_config(args):
+    """
+    Build the configuration dictionary from the parsed arguments.
+
+    Parameters:
+    - args (argparse.Namespace): Parsed arguments as a namespace.
+
+    Returns:
+    - dict: The configuration dictionary for the PyChart application.
+    """
     # --- Build configuration dictionary ---
     pychart_config = {
         "figure": {
             "title": args.ft[0],
             "projection": args.p,
+            "projbox": args.projbox,
             "sp": args.sp[0],
             "output": args.o[0],
             "crs": args.crs[0],
@@ -257,6 +305,11 @@ def get_config(args):
     return pychart_config
 
 def main():
+    """
+    The main entry point for the PyChart CLI.
+
+    Parses arguments, performs sanity checks, builds the configuration, and generates the figure.
+    """
     print("")
 
     # prepare config dictionary from input arguments
@@ -293,7 +346,7 @@ def main():
         # MAP
         if iax < len(map_config["files"]):
             debug(map_config)
-            pcol = add_map_plot(map_config, map_cb, iax, ax)
+            pcol = add_map_plot(map_config, map_cb, iax, ax, fb.proj[iax])
 
         # CONTOUR
         if (cnt_config["files"] and (iax < len(cnt_config["files"]))):

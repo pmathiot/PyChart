@@ -11,11 +11,35 @@ import matplotlib.tri as tri
 from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
 
 def plot_cartesian(ax, data, title="Plot"):
+    """
+    Plot data on a Cartesian grid.
+
+    Parameters:
+    - ax (matplotlib.axes.Axes): The axis to plot on.
+    - data (numpy.ndarray): The data to plot.
+    - title (str, optional): Title of the plot. Default is "Plot".
+
+    Returns:
+    - matplotlib.image.AxesImage: The image object created by imshow.
+    """
     im = ax.imshow(data, cmap="viridis", origin="lower")
     ax.set_title(title)
     return im
 
-def add_map_plot(map_config, map_cb, iax, ax):
+def add_map_plot(map_config, map_cb, iax, ax, proj=None):
+    """
+    Add a map plot to the given axis.
+
+    Parameters:
+    - map_config (dict): Configuration for the map plot.
+    - map_cb (object): Colorbar configuration.
+    - iax (int): Index of the axis.
+    - ax (matplotlib.axes.Axes): The axis to plot on.
+    - proj (cartopy.crs.Projection, optional): Projection to use. Default is None.
+
+    Returns:
+    - matplotlib.collections.QuadMesh: The plotted map object.
+    """
     map_data = PlotData(
         file=map_config["files"][iax],
         var=map_config["vars"][iax],
@@ -35,6 +59,9 @@ def add_map_plot(map_config, map_cb, iax, ax):
     print(map_data)
     print()
 
+    if (not proj) and (map_data.type != 'structured'):
+        raise ValueError("--noproj option is only valid for structured grids.")
+
     if map_data.type == 'tri_unstructured':
         map_data = map_data.to_triunstructured()
     elif map_data.type == 'ico_unstructured':
@@ -53,12 +80,20 @@ def add_map_plot(map_config, map_cb, iax, ax):
         map_cb.compute_norm()
         info(f" Colorbar min/max set to {map_cb.lvls[0]:g} / {map_cb.lvls[-1]:g}")
 
-    pcol = map_data.plot_map(ax, map_cb)  # returns QuadMesh or similar for colorbar
+    pcol = map_data.plot_map(ax, map_cb, proj)  # returns QuadMesh or similar for colorbar
     map_data.add_title(ax)
 
     return  pcol
 
 def add_cnt_plot(cnt_config, iax, ax):
+    """
+    Add a contour plot to the given axis.
+
+    Parameters:
+    - cnt_config (dict): Configuration for the contour plot.
+    - iax (int): Index of the axis.
+    - ax (matplotlib.axes.Axes): The axis to plot on.
+    """
     cnt_data = PlotData(
         file=cnt_config["files"][iax],
         var=cnt_config["vars"][iax],
@@ -88,6 +123,30 @@ def add_cnt_plot(cnt_config, iax, ax):
     cnt_data.plot_cnt(ax, levels=cntlvl, colors='k', linewidths=1)
 
 class PlotData:
+    """
+    Class to handle plotting data and metadata.
+
+    Attributes:
+    - file (str): Main data file.
+    - var (str): Variable name in the file.
+    - lvls (list, optional): Contour levels.
+    - jk (int): Depth level.
+    - kt (int): Time frame.
+    - fileref (str, optional): Reference file.
+    - varref (str, optional): Reference variable.
+    - jkref (int, optional): Reference depth level.
+    - ktref (int, optional): Reference time frame.
+    - refop (str, optional): Reference operation.
+    - data (numpy.ndarray, optional): Loaded data.
+    - dataref (numpy.ndarray, optional): Loaded reference data.
+    - lon (numpy.ndarray, optional): Longitude coordinates.
+    - lat (numpy.ndarray, optional): Latitude coordinates.
+    - sf (float): Scale factor for the main data.
+    - sfref (float): Scale factor for the reference data.
+    - trun (str, optional): Title for the run ID.
+    - tref (str, optional): Title for the variable.
+    - type (str): Data type ('structured' or 'unstructured').
+    """
     def __str__(self):
         lines = []
         lines.append("  Simulation field:")
@@ -116,7 +175,25 @@ class PlotData:
         return "\n".join(lines)
     
     def __init__(self, file, var, lvls=None, jk=1, kt=1, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
-        
+        """
+        Initialize the PlotData object.
+
+        Parameters:
+        - file (str): Main data file.
+        - var (str): Variable name in the file.
+        - lvls (list, optional): Contour levels. Default is None.
+        - jk (int, optional): Depth level. Default is 1.
+        - kt (int, optional): Time frame. Default is 1.
+        - fileref (str, optional): Reference file. Default is None.
+        - varref (str, optional): Reference variable. Default is None.
+        - jkref (int, optional): Reference depth level. Default is None.
+        - ktref (int, optional): Reference time frame. Default is None.
+        - sf (float, optional): Scale factor for the main data. Default is 1.0.
+        - sfref (float, optional): Scale factor for the reference data. Default is 1.0.
+        - trun (str, optional): Title for the run ID. Default is None.
+        - tref (str, optional): Title for the variable. Default is None.
+        - refop (str, optional): Reference operation. Default is None.
+        """
         self.file = file          # Main data file
         self.var = var            # Variable name in the file
         self.lvls = lvls
@@ -142,13 +219,9 @@ class PlotData:
         """
         Detect the grid type based on dimension names and sizes.
 
-        - If a dimension name contains 'vertex':
-            - If its length == 3  → 'tri_unstructured'
-            - If its length == 6  → 'ico_unstructured'
-            - Otherwise            → 'unstructured'
-        - Otherwise → 'structured'
+        Returns:
+        - str: Grid type ('structured', 'tri_unstructured', or 'ico_unstructured').
         """
-
         ds = nc.Dataset(self.file)
         dimnames = [d.lower() for d in ds.dimensions.keys()]
         grid_type = "structured"
@@ -173,7 +246,13 @@ class PlotData:
         ds.close()
         return grid_type
 
-    def add_title(self,ax):
+    def add_title(self, ax):
+        """
+        Add a title to the axis.
+
+        Parameters:
+        - ax (matplotlib.axes.Axes): The axis to add the title to.
+        """
         if self.tref and self.refop:
             ctitle=f"{self.trun} {self.refop} {self.tref}"
         elif self.trun:
@@ -181,7 +260,6 @@ class PlotData:
         else:
             ctitle=f"{self.var}"
         ax.set_title(ctitle,fontsize=18)
-
 
     def compute_data(self):
         """
@@ -197,6 +275,12 @@ class PlotData:
             self.data = self.data * self.sf
 
     def to_structured(self):
+        """
+        Convert the data to a structured grid format.
+
+        Returns:
+        - StructuredPlotData: The structured plot data object.
+        """
         return StructuredPlotData(
             file=self.file,
             var=self.var,
@@ -215,6 +299,12 @@ class PlotData:
         )
     
     def to_triunstructured(self):
+        """
+        Convert the data to a triangular unstructured grid format.
+
+        Returns:
+        - TriUnStructuredPlotData: The triangular unstructured plot data object.
+        """
         return TriUnStructuredPlotData(
             file=self.file,
             var=self.var,
@@ -233,6 +323,12 @@ class PlotData:
         )
     
     def to_icounstructured(self):
+        """
+        Convert the data to an icosahedral unstructured grid format.
+
+        Returns:
+        - IcoUnStructuredPlotData: The icosahedral unstructured plot data object.
+        """
         return IcoUnStructuredPlotData(
             file=self.file,
             var=self.var,
@@ -251,12 +347,37 @@ class PlotData:
         )
 
 class StructuredPlotData(PlotData):
+    """
+    Class for handling structured grid plot data.
+    """
     def __init__(self, file, var, lvls=None, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        """
+        Initialize the StructuredPlotData object.
+
+        Parameters:
+        - file (str): Main data file.
+        - var (str): Variable name in the file.
+        - lvls (list, optional): Contour levels. Default is None.
+        - jk (int, optional): Depth level. Default is None.
+        - kt (int, optional): Time frame. Default is None.
+        - fileref (str, optional): Reference file. Default is None.
+        - varref (str, optional): Reference variable. Default is None.
+        - jkref (int, optional): Reference depth level. Default is None.
+        - ktref (int, optional): Reference time frame. Default is None.
+        - sf (float, optional): Scale factor for the main data. Default is 1.0.
+        - sfref (float, optional): Scale factor for the reference data. Default is 1.0.
+        - trun (str, optional): Title for the run ID. Default is None.
+        - tref (str, optional): Title for the variable. Default is None.
+        - refop (str, optional): Reference operation. Default is None.
+        """
         super().__init__(file, var, lvls, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
         Load the main data and reference data (if applicable).
+
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
         """
         self.data = get_2d_data(self.file, self.var, klvl=self.jk, ktime=self.kt, offsety=joffset)
         if self.fileref and self.varref:
@@ -265,6 +386,10 @@ class StructuredPlotData(PlotData):
     def get_coords(self, mesh_file=None, joffset=0):
         """
         Load latitude and longitude coordinates.
+
+        Parameters:
+        - mesh_file (str, optional): Path to the mesh file. Default is None.
+        - joffset (int, optional): Offset for the y-dimension. Default is 0.
         """
         if mesh_file:
             self.lon, self.lat = self.get_latlon()
@@ -272,6 +397,12 @@ class StructuredPlotData(PlotData):
             self.lon, self.lat = self.get_latlon()
 
     def get_latlon(self):
+        """
+        Retrieve latitude and longitude data from the file.
+
+        Returns:
+        - tuple: Longitude and latitude arrays.
+        """
         clat,clon=get_latlon_var(self.file)
         lat2d=get_2d_data(self.file,clat,offsety=-2)
         lon2d=get_2d_data(self.file,clon,offsety=-2)
@@ -281,9 +412,17 @@ class StructuredPlotData(PlotData):
             lon2d[i, start+1:] += 360
         return lon2d, lat2d
 
-    def plot_map(self, ax, map_cb, **kwargs):
+    def plot_map(self, ax, map_cb, proj=None, **kwargs):
         """
         Plot data on a map using the given axis.
+
+        Parameters:
+        - ax (matplotlib.axes.Axes): The axis to plot on.
+        - map_cb (object): Colorbar configuration.
+        - proj (cartopy.crs.Projection, optional): Projection to use. Default is None.
+
+        Returns:
+        - matplotlib.collections.QuadMesh: The plotted map object.
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
@@ -291,12 +430,21 @@ class StructuredPlotData(PlotData):
         info(" Plotting pcolor map ...")
         debug(f" Plotting pcolor map with shape {self.data.shape}, lon shape {self.lon.shape}, lat shape {self.lat.shape}")
         print("")
-        pcm = ax.pcolormesh(self.lon, self.lat, self.data, cmap=map_cb.cmap, norm=map_cb.norm, transform=ccrs.PlateCarree(), **kwargs)
+        if proj:
+            # Use transform only if a projection is defined
+            pcm = ax.pcolormesh(self.lon, self.lat, self.data, cmap=map_cb.cmap, norm=map_cb.norm, transform=ccrs.PlateCarree(), **kwargs)
+        else:
+            # Plot without transform for Cartesian coordinates
+            pcm = ax.pcolormesh(self.data, cmap=map_cb.cmap, norm=map_cb.norm, **kwargs)
         return pcm
 
     def plot_cnt(self, ax, levels=10, **kwargs):
         """
         Plot contour lines on the given axis.
+
+        Parameters:
+        - ax (matplotlib.axes.Axes): The axis to plot on.
+        - levels (int or list, optional): Contour levels. Default is 10.
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
@@ -304,12 +452,37 @@ class StructuredPlotData(PlotData):
         return cs
     
 class TriUnStructuredPlotData(PlotData):
+    """
+    Class for handling triangular unstructured grid plot data.
+    """
     def __init__(self, file, var, lvls=None, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        """
+        Initialize the TriUnStructuredPlotData object.
+
+        Parameters:
+        - file (str): Main data file.
+        - var (str): Variable name in the file.
+        - lvls (list, optional): Contour levels. Default is None.
+        - jk (int, optional): Depth level. Default is None.
+        - kt (int, optional): Time frame. Default is None.
+        - fileref (str, optional): Reference file. Default is None.
+        - varref (str, optional): Reference variable. Default is None.
+        - jkref (int, optional): Reference depth level. Default is None.
+        - ktref (int, optional): Reference time frame. Default is None.
+        - sf (float, optional): Scale factor for the main data. Default is 1.0.
+        - sfref (float, optional): Scale factor for the reference data. Default is 1.0.
+        - trun (str, optional): Title for the run ID. Default is None.
+        - tref (str, optional): Title for the variable. Default is None.
+        - refop (str, optional): Reference operation. Default is None.
+        """
         super().__init__(file, var, lvls, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
         Load the main data and reference data (if applicable).
+
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
         """
         fid=nc.Dataset(self.file)
         self.data = fid.variables[self.var][self.kt-1,:].squeeze()
@@ -322,15 +495,27 @@ class TriUnStructuredPlotData(PlotData):
     def get_coords(self, mesh_file=None, joffset=0):
         """
         Load latitude and longitude coordinates.
+
+        Parameters:
+        - mesh_file (str, optional): Path to the mesh file. Default is None.
+        - joffset (int, optional): Offset for the y-dimension. Default is 0.
         """
         fid=nc.Dataset(self.file)
         self.lon=fid.variables['antarctica_node_x'][:].squeeze()
         self.lat=fid.variables['antarctica_node_y'][:].squeeze()
         self.tri=fid.variables['antarctica_face_nodes'][:].squeeze()
 
-    def plot_map(self, ax, map_cb, **kwargs):
+    def plot_map(self, ax, map_cb, proj=None, **kwargs):
         """
         Plot data on a map using the given axis.
+
+        Parameters:
+        - ax (matplotlib.axes.Axes): The axis to plot on.
+        - map_cb (object): Colorbar configuration.
+        - proj (cartopy.crs.Projection, optional): Projection to use. Default is None.
+
+        Returns:
+        - matplotlib.collections.QuadMesh: The plotted map object.
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
@@ -363,6 +548,10 @@ class TriUnStructuredPlotData(PlotData):
     def plot_cnt(self, ax, levels=10, **kwargs):
         """
         Plot contour lines on the given axis.
+
+        Parameters:
+        - ax (matplotlib.axes.Axes): The axis to plot on.
+        - levels (int or list, optional): Contour levels. Default is 10.
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
@@ -401,20 +590,10 @@ class TriUnStructuredPlotData(PlotData):
     
     def elemental_to_nodal(self):
         """
-        Convert elemental (triangle-centered) data to nodal (vertex) data
-        by averaging values from triangles that share each node.
+        Convert elemental (triangle-centered) data to nodal (vertex) data.
 
-        Parameters
-        ----------
-        triangles : (n_tri, 3) array of ints
-            Indices of nodes forming each triangle.
-        elem_data : (n_tri,) array
-            Data values for each triangle (elemental).
-
-        Returns
-        -------
-        nodal_data : (n_nodes,) array
-            Data values at each node (averaged from connected triangles).
+        Returns:
+        - numpy.ndarray: Data values at each node (averaged from connected triangles).
         """
         print("Converting elemental data to nodal data...")
         n_nodes = self.tri.max() + 1
@@ -430,12 +609,37 @@ class TriUnStructuredPlotData(PlotData):
         return nodal_data
 
 class IcoUnStructuredPlotData(PlotData):
+    """
+    Class for handling icosahedral unstructured grid plot data.
+    """
     def __init__(self, file, var, lvls, jk=None, kt=None, fileref=None, varref=None, jkref=None, ktref=None, sf=1.0, sfref=1.0, trun=None, tref=None, refop=None):
+        """
+        Initialize the IcoUnStructuredPlotData object.
+
+        Parameters:
+        - file (str): Main data file.
+        - var (str): Variable name in the file.
+        - lvls (list, optional): Contour levels. Default is None.
+        - jk (int, optional): Depth level. Default is None.
+        - kt (int, optional): Time frame. Default is None.
+        - fileref (str, optional): Reference file. Default is None.
+        - varref (str, optional): Reference variable. Default is None.
+        - jkref (int, optional): Reference depth level. Default is None.
+        - ktref (int, optional): Reference time frame. Default is None.
+        - sf (float, optional): Scale factor for the main data. Default is 1.0.
+        - sfref (float, optional): Scale factor for the reference data. Default is 1.0.
+        - trun (str, optional): Title for the run ID. Default is None.
+        - tref (str, optional): Title for the variable. Default is None.
+        - refop (str, optional): Reference operation. Default is None.
+        """
         super().__init__(file, var, lvls, jk, kt, fileref, varref, jkref, ktref, sf, sfref, trun, tref, refop)
 
     def get_data(self, joffset=-2):
         """
         Load the main data and reference data (if applicable).
+
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
         """
         fid=nc.Dataset(self.file)
         self.data = fid.variables[self.var][self.kt-1,:].squeeze()
@@ -455,9 +659,17 @@ class IcoUnStructuredPlotData(PlotData):
         self.bnds_lat = ds['bounds_lat'].values  # shape: (cell, 6)
         self.bnds_lon = ds['bounds_lon'].values  # shape: (cell, 6)
 
-    def plot_map(self, ax, map_cb, **kwargs):
+    def plot_map(self, ax, map_cb, proj=None, **kwargs):
         """
         Plot data on a map using the given axis.
+
+        Parameters:
+        - ax (matplotlib.axes.Axes): The axis to plot on.
+        - map_cb (object): Colorbar configuration.
+        - proj (cartopy.crs.Projection, optional): Projection to use. Default is None.
+
+        Returns:
+        - matplotlib.collections.PolyCollection: The plotted map object.
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
@@ -518,6 +730,10 @@ class IcoUnStructuredPlotData(PlotData):
     def plot_cnt(self, ax, levels=10, **kwargs):
         """
         Plot contour lines on the given axis.
+
+        Parameters:
+        - ax (matplotlib.axes.Axes): The axis to plot on.
+        - levels (int or list, optional): Contour levels. Default is 10.
         """
         if self.data is None or self.lon is None or self.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")

@@ -10,19 +10,22 @@ import cmocean
 
 class cb:
     """
-    A class to represent a colormap
+    A class to represent a colormap.
 
-    Attributes
-    ----------
-    cmap : cmap object
-        colormap used in pcolormesh
-    norm : colors.norm object
-        normalisation used in pcolormesh
+    Attributes:
+    - cmap (cmap object): Colormap used in pcolormesh.
+    - norm (colors.Normalize object): Normalization used in pcolormesh.
+    - lvls (list): Discrete levels defining the colormap.
+    - unit (str): Units for the colorbar.
+    - fmt (str): Format for the colorbar labels.
+    - ext (str): Extend parameter for the colorbar.
+    - cnorm (str): Normalization type ('BoundaryNorm', 'LogNorm', etc.).
 
-    Methods
-    -------
-    add_colorbar:
-        add a colorbar to the plot
+    Methods:
+    - __str__: Returns a string representation of the colormap.
+    - __init__: Initializes the colormap with the given configuration.
+    - compute_norm: Computes the normalization based on the levels and colormap.
+    - get_lvl: Computes an array of discrete levels for the colormap.
     """
 
     def __str__(self):
@@ -49,7 +52,20 @@ class cb:
             f"  Format       : {self.fmt}\n"
         )
 
-    def __init__(self,config):
+    def __init__(self, config):
+        """
+        Initialize the colormap with the given configuration.
+
+        Parameters:
+        - config (dict): Configuration dictionary containing:
+            - units (str): Units for the colorbar.
+            - fmt (str): Format for the colorbar labels.
+            - extend (str): Extend parameter for the colorbar.
+            - norm (str): Normalization type ('BoundaryNorm', 'LogNorm', etc.).
+            - colormap (str): Name of the colormap.
+            - cmocean (bool): Whether to use a cmocean colormap.
+            - levels (list): Discrete levels for the colormap.
+        """
         # get map colorbar
         self.unit=config["units"]
         self.fmt=config["fmt"]
@@ -74,6 +90,11 @@ class cb:
 
 
     def compute_norm(self):
+        """
+        Compute the normalization based on the levels and colormap.
+
+        Sets the `norm` attribute to the appropriate normalization object.
+        """
         dnorm={
                'BoundaryNorm':colors.BoundaryNorm(self.lvls, self.cmap.N, extend=self.ext),
                'LogNorm':colors.LogNorm(vmin=self.lvls[0],vmax=self.lvls[-1]),
@@ -82,26 +103,18 @@ class cb:
               }
         self.norm = dnorm[self.cnorm]
 
-    def get_lvl(self,bnds):
+    def get_lvl(self, bnds):
         """
-        compute an array of discrete levels used to define the colormap based on a list of levels of length 2, 3 or more.
-        If the list length is 2, 10 equidistance levels are computed from list[0] to list[1]
-                            3, X levels are computed from list[0] to list[1] by a step of list[2]
-                            >3, the levels are the one specified in the input parameters
+        Compute an array of discrete levels used to define the colormap.
 
-        Parameters
-        ----------
-        parameter 1: list
-            list of levels (length 2, 3 or more)
+        Parameters:
+        - bnds (list): List of levels with length 2, 3, or more.
 
-        Returns
-        -------
-        output 1: np.array
-            array of levels
+        Returns:
+        - np.array: Array of levels.
 
-        Raises
-        ------
-        No raise
+        Raises:
+        - SystemExit: If the levels are not properly defined.
         """
         if self.cnorm == 'TwoSlopeNorm':
                 lvl=[bnds[0],bnds[2],bnds[1]]

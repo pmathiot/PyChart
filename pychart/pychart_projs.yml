@@ -1,4 +1,11 @@
 projections:
+
+  noproj:
+    projection: Null
+    extent:
+      - [0, 0, 0, 0]
+      - Null
+
   ortho_natl:
     projection: "Orthographic"
     params:

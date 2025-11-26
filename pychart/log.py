@@ -1,3 +1,14 @@
+"""
+log.py
+
+This module provides logging utilities for the PyChart application. It includes functions for enabling debug mode, logging informational messages, and logging debug messages.
+
+Functions:
+- set_debug(enabled: bool): Enables or disables debug mode.
+- info(msg: str): Logs an informational message.
+- debug(msg: str): Logs a debug message if debug mode is enabled.
+"""
+
 # pychart/log.py
 DEBUG_ENABLED = False
 

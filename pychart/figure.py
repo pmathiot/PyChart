@@ -55,6 +55,7 @@ class FigureBuilder:
         # Initialize projection and extent if the projection is available as key in config
         self.proj = []
         self.extent = []
+        self.projname = []
         if "projection" in config and self.projections:
             self._init_projection(config["projection"])
 
@@ -65,13 +66,26 @@ class FigureBuilder:
             if proj_name not in self.projections:
                 raise ValueError(f"Projection '{proj_name}' not found in the YAML file.")
             proj_data = self.projections[proj_name]
-            proj_class = getattr(ccrs, proj_data["projection"])
+            
+            if proj_data["projection"] == None:
+                proj_class = None
+            else:
+                proj_class = getattr(ccrs, proj_data["projection"])
+
             params = proj_data.get("params", {})
             extent = proj_data["extent"]
-            if extent[-1] == "cproj":
-                extent[-1] = self.proj
+            if extent[1] == "cproj":
+                extent[1] = self.proj
+            if self.config["projbox"]:
+                extent[0] = self.config["projbox"]
+                extent[1] = None
+            self.projname.append(proj_name)
             self.extent.append(extent)
-            self.proj.append(proj_class(**params))
+
+            if proj_class:
+                self.proj.append(proj_class(**params))
+            else:
+                self.proj.append(proj_class)
 
     def build_layout(self):
         nisplt, njsplt = self._get_subplot(self.config["sp"])
@@ -90,21 +104,36 @@ class FigureBuilder:
             for iplt in range(nplt):
                 pltloc.append(gs[iplt // nisplt, iplt % nisplt])
 
+        # Handle --noproj option
+        if self.projname == 'noproj':
+            debug("--noproj is activated. Using Cartesian coordinates (i, j).")
+
         for iplt in range(len(self.proj)):
             debug(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]} {pltloc[iplt]}")
-            info(f"Creating subplot {iplt+1}/{nplt} with projection {self.config["projection"][iplt]}")
-            ax = self.fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
-            extent= self.extent[iplt]
-            if extent:
-                if extent[0] == "global":
-                    ax.set_global()
-                else:
-                    if extent[1] == "PlateCarree":
-                        ax.set_extent(extent[0], crs=ccrs.PlateCarree())
-                    else:
-                        ax.set_extent(extent[0], extent[1])
-            ax.gridlines()
-            self.add_land_features(ax, ['isf', 'lakes', 'land', 'bathy'])
+            extent = self.extent[iplt]
+            if self.proj[iplt]:
+                print(self.proj)
+                ax = self.fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
+                self.add_land_features(ax, ['isf', 'lakes', 'land', 'bathy'])
+            else:
+                ax = self.fig.add_subplot(pltloc[iplt])  # Cartesian coordinates
+
+            if extent[0] == "global":
+                ax.set_global()
+            elif extent[1] == "PlateCarree":
+                    ax.set_extent(extent[0], crs=ccrs.PlateCarree())
+            elif extent[1] == None:
+                if extent[0] != [0, 0, 0, 0]:
+                    ax.set_xlim([extent[0][0], extent[0][1]])
+                    ax.set_ylim([extent[0][2], extent[0][3]])
+            else:
+                ax.set_extent(extent[0], extent[1])
+
+            if self.proj[iplt]:
+                ax.gridlines()
+            else:
+                ax.grid(True)
+
             self.axes.append(ax)
 
             # remove extra white space
