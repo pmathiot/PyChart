@@ -1,7 +1,6 @@
 import numpy as np
 import yaml
 import cartopy.crs as ccrs
-import netCDF4 as nc
 import xarray as xr
 from matplotlib.collections import PolyCollection
 from scipy.interpolate import griddata
@@ -222,17 +221,17 @@ class PlotData:
         Returns:
         - str: Grid type ('structured', 'tri_unstructured', or 'ico_unstructured').
         """
-        ds = nc.Dataset(self.file)
-        dimnames = [d.lower() for d in ds.dimensions.keys()]
+        ds = xr.open_dataset(self.file)
+        dimnames = [d.lower() for d in ds.sizes.keys()]
         grid_type = "structured"
 
         # Look for any dimension that includes "vertex"
         vertex_dims = [d for d in dimnames if "vertex" in d]
-        debug(f"Detected vertex dimensions: {vertex_dims}, {len(ds.dimensions[vertex_dims[0]])}")
+        debug(f"Detected vertex dimensions: {vertex_dims}, {ds.sizes[vertex_dims[0]]}")
         if vertex_dims:
             # Take the first one (usually only one)
             vertex_dim = vertex_dims[0]
-            nvertex = len(ds.dimensions[vertex_dim])
+            nvertex = ds.sizes[vertex_dim]
 
             if nvertex == 3:
                 grid_type = "tri_unstructured"
@@ -243,7 +242,6 @@ class PlotData:
             else:
                 raise ValueError("This unstructured grid type is unsupported (not 3 or 6 vertex)")
 
-        ds.close()
         return grid_type
 
     def add_title(self, ax):
@@ -263,15 +261,17 @@ class PlotData:
 
     def compute_data(self):
         """
-        Compute the data to be plotted, applying the operation with reference data if provided.
-        """
+        Compute the data to be plotted, applying the operation with reference data if providinfo(f" Computing data ...")
+ed.
+        info(f" Computing data ...")
+"""
         info(f" Computing data ...")
         if self.dataref is not None:
             if self.refop == "-":
                 self.data = (self.data * self.sf) - (self.dataref * self.sfref)
             elif self.refop == "/":
                 self.data = (self.data * self.sf) / (self.dataref * self.sfref)
-        else :
+        else:
             self.data = self.data * self.sf
 
     def to_structured(self):
@@ -374,7 +374,13 @@ class StructuredPlotData(PlotData):
 
     def get_data(self, joffset=-2):
         """
-        Load the main data and reference data (if applicable).
+        Load the main data and 
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
+reference data (
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
+if applicable).
 
         Parameters:
         - joffset (int, optional): Offset for the y-dimension. Default is -2.
@@ -480,30 +486,22 @@ class TriUnStructuredPlotData(PlotData):
     def get_data(self, joffset=-2):
         """
         Load the main data and reference data (if applicable).
-
-        Parameters:
-        - joffset (int, optional): Offset for the y-dimension. Default is -2.
         """
-        fid=nc.Dataset(self.file)
-        self.data = fid.variables[self.var][self.kt-1,:].squeeze()
-        fid.close()
+        ds = xr.open_dataset(self.file)
+        self.data = ds[self.var].isel(time=self.kt - 1).values
         if self.fileref and self.varref:
-           fid=nc.Dataset(self.fileref)
-           self.dataref = fid.variables[self.varref][self.kt-1,:].squeeze()
-           fid.close()
+            ref_ds = xr.open_dataset(self.fileref)
+            self.dataref = ref_ds[self.varref].isel(time=self.ktref - 1).values
 
     def get_coords(self, mesh_file=None, joffset=0):
         """
         Load latitude and longitude coordinates.
-
-        Parameters:
-        - mesh_file (str, optional): Path to the mesh file. Default is None.
-        - joffset (int, optional): Offset for the y-dimension. Default is 0.
         """
-        fid=nc.Dataset(self.file)
-        self.lon=fid.variables['antarctica_node_x'][:].squeeze()
-        self.lat=fid.variables['antarctica_node_y'][:].squeeze()
-        self.tri=fid.variables['antarctica_face_nodes'][:].squeeze()
+        ds = xr.open_dataset(self.file)
+        self.lon = ds['lon'].values
+        self.lat = ds['lat'].values
+        self.tri = ds['triangles'].values
+        ds.close()
 
     def plot_map(self, ax, map_cb, proj=None, **kwargs):
         """
@@ -636,28 +634,35 @@ class IcoUnStructuredPlotData(PlotData):
 
     def get_data(self, joffset=-2):
         """
-        Load the main data and reference data (if applicable).
+        Load the mrefer 
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
+nceand refer 
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
+nce data (if 
+        Parameters:
+        - joffset (int, optional): Offset for the y-dimension. Default is -2.
+applicable).
 
         Parameters:
         - joffset (int, optional): Offset for the y-dimension. Default is -2.
         """
-        fid=nc.Dataset(self.file)
-        self.data = fid.variables[self.var][self.kt-1,:].squeeze()
-        fid.close()
+        ds = xr.open_dataset(self.file)
+        self.data = ds[self.var].isel(time=self.kt - 1).values
         if self.fileref and self.varref:
-           fid=nc.Dataset(self.fileref)
-           self.dataref = fid.variables[self.varref][self.kt-1,:].squeeze()
-           fid.close()
+            ref_ds = xr.open_dataset(self.fileref)
+            self.dataref = ref_ds[self.varref].isel(time=self.ktref - 1).values
 
     def get_coords(self):
         """
         Load latitude and longitude coordinates.
         """
         ds = xr.open_dataset(self.file)
-        self.lon=ds['lon'].values.squeeze()
-        self.lat=ds['lat'].values.squeeze()
-        self.bnds_lat = ds['bounds_lat'].values  # shape: (cell, 6)
-        self.bnds_lon = ds['bounds_lon'].values  # shape: (cell, 6)
+        self.lon = ds['lon'].values
+        self.lat = ds['lat'].values
+        self.bnds_lon = ds['bounds_lon'].values
+        self.bnds_lat = ds['bounds_lat'].values
 
     def plot_map(self, ax, map_cb, proj=None, **kwargs):
         """

@@ -38,6 +38,7 @@ class FigureBuilder:
         lines.append("")
 
         return "\n".join(lines)
+    
     def __init__(self, config):
         self.config = config
         self.fig = None
@@ -66,7 +67,7 @@ class FigureBuilder:
             if proj_name not in self.projections:
                 raise ValueError(f"Projection '{proj_name}' not found in the YAML file.")
             proj_data = self.projections[proj_name]
-            
+
             if proj_data["projection"] == None:
                 proj_class = None
             else:
@@ -112,7 +113,6 @@ class FigureBuilder:
             debug(f"Creating subplot {iplt+1}/{nplt} with projection {self.proj[iplt]} {pltloc[iplt]}")
             extent = self.extent[iplt]
             if self.proj[iplt]:
-                print(self.proj)
                 ax = self.fig.add_subplot(pltloc[iplt], projection=self.proj[iplt])
                 self.add_land_features(ax, ['isf', 'lakes', 'land', 'bathy'])
             else:
