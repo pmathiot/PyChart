@@ -1,68 +1,7 @@
-import argparse
-import matplotlib.pyplot as plt
-from pychart.io_utils import load_data
-from pychart.plot import PlotData, add_map_plot, add_cnt_plot
-from pychart.figure import FigureBuilder  # <- new class file replacing buid_figure_layout, etc.
-from pychart import cb
-from pychart.cli import parse_args, sanity_checks_args, get_config
-from pychart.log import set_debug, info, debug
-from pychart.cb import cb
-import time
+from .cli import main
 
 # Add a print plot summary and a print of a YML to read ?
 # need to think about it
-
-def main():
-    print("")
-
-    # prepare config dictionary from input arguments
-    args = parse_args()
-
-    # set debug mode if needed
-    set_debug(args.debug)
-
-    # sanity checks on input arguments
-    args = sanity_checks_args(args)
-
-    # prepare config dictionary from input arguments
-    pychart_config = get_config(args)
-
-    # --- Build the figure using the new class ---
-    figure_config = pychart_config["figure"]
-    map_config = pychart_config["map"]
-    cnt_config = pychart_config["cnt"]
-    cb_config = pychart_config["cb"]
-
-    fb = FigureBuilder(config=figure_config)
-    print(fb)                         # print figure summary
-    
-    fb.build_layout()                 # builds figure + subplots + titles
-
-    # --- Create colorbar instance ---
-    map_cb = cb(cb_config)
-    print(map_cb)
-    
-    # --- Loop through subplots ---
-    for iax, ax in enumerate(fb.axes):
-        info(f"Processing subplot {iax+1}/{len(fb.axes)}")
-        print()
-        # MAP
-        if iax < len(map_config["files"]):
-            debug(map_config)
-            pcol = add_map_plot(map_config, map_cb, iax, ax)
-
-        # CONTOUR
-        if (cnt_config["files"] and (iax < len(cnt_config["files"]))):
-            debug(cnt_config["files"])
-            add_cnt_plot(cnt_config, iax, ax)
-
-    # --- Add colorbar using the class method ---
-    fb.add_colorbar(pcol, map_cb)
-
-    fb.save_figure()
-
-    info(f"Display figure ...")
-    plt.show()
 
 if __name__ == "__main__":
     main()

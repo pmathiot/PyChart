@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import sys
-from pychart.log import info
+from .log import info
 
 import cmocean
 
@@ -30,7 +30,7 @@ class cb:
         cmap_name = getattr(self.cmap, 'name', str(self.cmap))
 
         # Summarize level range
-        if self.lvls:
+        if self.lvls[0] != None :
             lvl_min = self.lvls[0]
             lvl_max = self.lvls[-1]
             lvl_count = len(self.lvls)
@@ -38,7 +38,6 @@ class cb:
         else:
             lvl_min = lvl_max = lvl_count = "N/A"
             clvl_info = "to be determined from data"
-            norm_type = "None"
         
         return (
             f"Colorbar:\n"
@@ -57,9 +56,14 @@ class cb:
         self.ext=config["extend"]
         self.cnorm=config["norm"]
         self.norm=None
-        self.lvls=None
+        self.lvls=[None]
 
-        if config["levels"]:
+        if config["cmocean"]:
+            self.cmap=eval(config["colormap"])
+        else:
+            self.cmap = plt.get_cmap(config["colormap"])
+
+        if config["levels"] != [None] :
             self.get_lvl(config["levels"])
             self.compute_norm()
         else:
@@ -68,18 +72,6 @@ class cb:
             print('')
             self.cnorm='Normalize'
 
-        if config["cmocean"]:
-            self.cmap=eval(config["colormap"])
-        else:
-            self.cmap = plt.get_cmap(config["colormap"])
-
-    @property
-    def cmap(self):
-        return self._cmap
-
-    @cmap.setter
-    def cmap(self,cmap):
-        self._cmap = cmap
 
     def compute_norm(self):
         dnorm={
@@ -130,5 +122,3 @@ class cb:
                 print(' Need definition of levels (min,max) at least.')
                 sys.exit(42)
         self.lvls=lvl
-
-

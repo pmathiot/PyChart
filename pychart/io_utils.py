@@ -2,7 +2,7 @@ import numpy as np
 import netCDF4 as nc
 import re
 import sys
-from pychart.log import debug, info
+from .log import debug, info
 
 def load_data(file_path):
     # Placeholder for loading data (e.g., from NetCDF)

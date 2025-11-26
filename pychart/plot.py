@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 import cartopy.crs as ccrs
@@ -6,8 +5,8 @@ import netCDF4 as nc
 import xarray as xr
 from matplotlib.collections import PolyCollection
 from scipy.interpolate import griddata
-from pychart.io_utils import get_2d_data, get_latlon_var, get_2d_data
-from pychart.log import info, debug
+from .io_utils import get_2d_data, get_latlon_var, get_2d_data
+from .log import info, debug
 import matplotlib.tri as tri
 from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
 
@@ -32,6 +31,7 @@ def add_map_plot(map_config, map_cb, iax, ax):
         tref=map_config["sprid"][iax],
         refop=map_config["op"][iax]
     )
+    print("File to map:")
     print(map_data)
     print()
 
@@ -47,8 +47,7 @@ def add_map_plot(map_config, map_cb, iax, ax):
     map_data.compute_data()
 
     # update lvls for colorbar if not provided
-    # TOADD
-    if map_cb.lvls is None:
+    if map_cb.lvls[0] is [None]:
         info(" Setting colorbar levels from data min/max ...")
         map_cb.get_lvl([map_data.data.min(), map_data.data.max()])
         map_cb.compute_norm()
@@ -91,12 +90,13 @@ def add_cnt_plot(cnt_config, iax, ax):
 class PlotData:
     def __str__(self):
         lines = []
-        lines.append("PlotData:")
         lines.append("  Simulation field:")
         lines.append(f"    files    : {self.file}")
         lines.append(f"    vars     : {self.var}")
-        lines.append(f"    levels   : {self.lvls}")
-        lines.append(f"    jk, kt   : {self.jk}, {self.kt}")
+        if self.lvls is not None:
+            lines.append(f"    levels   : {self.lvls}")
+        lines.append(f"    jk       : {self.jk}")
+        lines.append(f"    kt       : {self.kt}")
         lines.append(f"    scale    : {self.sf}")
         lines.append(f"    type     : {self.type}")
         lines.append(f"    name     : {self.trun}")
@@ -108,7 +108,7 @@ class PlotData:
             lines.append(f"    fileref  : {self.fileref}")
             lines.append(f"    varref   : {self.varref}")
             lines.append(f"    jkref    : {self.jkref}")
-            lines.append(f"    kt       : {self.ktref}")
+            lines.append(f"    ktref    : {self.ktref}")
             lines.append(f"    refop    : {self.refop}")
             lines.append(f"    scale    : {self.sfref}")
             lines.append(f"    name     : {self.tref}")

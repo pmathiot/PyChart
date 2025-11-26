@@ -3,9 +3,8 @@ import numpy as np
 import yaml
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import importlib.resources as pkg_resources
 import pathlib
-from pychart.log import debug, info
+from .log import debug, info
 
 
 class FigureBuilder:
