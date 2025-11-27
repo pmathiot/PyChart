@@ -16,11 +16,23 @@ from .grids import StructuredGrid, TriGrid, IcoGrid, GridStrategy
 
 @dataclass
 class DataConfig:
+    def __str__(self):
+        lines = []
+        lines.append("PlotData:")
+        lines.append(f"    files    : {self.file}")
+        lines.append(f"    vars     : {self.var}")
+        lines.append(f"    jk, kt   : {self.jk}, {self.kt}")
+        lines.append(f"    joffset  : {self.joffset}")
+        lines.append(f"    scale    : {self.scale}")
+        lines.append(f"    title    : {self.title}")
+        return "\n".join(lines)
+    
     file: str
     var: str
     jk: int = 1
     kt: int = 1
     scale: float = 1.0
+    joffset: Optional[int] = None
     title: Optional[str] = None
 
     # internal cached data (not part of init / repr)
@@ -31,7 +43,6 @@ class DataConfig:
         This method will call `grid.load_data(self)`. It is idempotent.
         """
         if self._data is None:
-            info(f"Loading data for file={self.file} var={self.var} jk={self.jk} kt={self.kt}")
             self._data = grid.load_data(self)
         else:
             debug(f"Using cached data for {self.file}:{self.var}")
@@ -52,6 +63,28 @@ class DataConfig:
 
 @dataclass
 class PlotConfig:
+    def __str__(self):
+        lines = []
+        lines.append("PlotConfig:")
+
+        # --- Simulation field
+        run_str = str(self.run).replace("\n", "\n    ")
+        lines.append("  Simulation field:")
+        lines.append(f"    {run_str}")
+        lines.append(f"")
+
+        # --- Reference field
+        if self.ref is not None:
+            ref_str = str(self.ref).replace("\n", "\n    ")
+            lines.append("  Reference field:")
+            lines.append(f"    {ref_str}")
+            lines.append(f"")
+            lines.append(f"  Operation: {self.refop}")
+            lines.append(f"")
+
+        lines.append(f"  Line/Color Levels: {self.lvls}")
+        return "\n".join(lines)
+    
     run: DataConfig
     ref: Optional[DataConfig] = None
     refop: Optional[str] = None
@@ -70,7 +103,24 @@ class PlotData:
     lon, lat: coordinates
     data_to_plot: final array to be used by plotting backends (after scaling/refop)
     """
+    def __str__(self):
+        lines = []
+        lines.append("PlotData:")
+        lines.append(f"    {self.cfg}")
+        lines.append("")
 
+        # --- Grid
+        grid_name = self.grid.__class__.__name__
+        lines.append(f"  Grid type   : {grid_name}")
+        lines.append("")
+        
+        # --- Loaded status
+        lines.append(f"  lon/lat     : {'loaded' if self.lon is not None else 'not loaded'}")
+        lines.append(f"  data        : {'loaded' if self.data is not None else 'not loaded'}")
+        lines.append(f"  dataref     : {'loaded' if self.dataref is not None else 'not loaded'}")
+
+        return "\n".join(lines)
+    
     def __init__(self, cfg: PlotConfig, grid: GridStrategy):
         self.cfg = cfg
         self.grid = grid
@@ -105,6 +155,7 @@ class PlotData:
         """Compute `data_to_plot` from run and optional reference according to refop.
         Applies scales (DataConfig.scale) to each input.
         """
+        print('')
         info(" Computing data ...")
 
         if self.cfg.ref is not None and self.cfg.refop is not None:
@@ -188,18 +239,20 @@ def add_map_plot(map_config: dict, map_cb: Any, iax: int, ax, proj=None):
         jk=int(map_config["jk"][iax]) if map_config["jk"][iax] else 1,
         kt=int(map_config["jt"][iax]) if map_config["jt"][iax] else 1,
         scale=float(map_config.get("scale", [1.0])[iax]),
+        joffset=map_config.get("offsety", None),
         title=map_config.get("spfid", [None])[iax],
     )
 
     # reference config
     ref_cfg = None
-    if map_config.get("refs"):
+    if map_config.get("refs")[iax]:
         ref_cfg = DataConfig(
             file=map_config["refs"][iax],
             var=map_config["ref_vars"][iax],
             jk=int(map_config["jk"][iax]) if map_config["jk"][iax] else 1,
             kt=int(map_config["jt"][iax]) if map_config["jt"][iax] else 1,
             scale=float(map_config.get("ref_scale", [1.0])[iax]),
+            joffset=map_config.get("offsety", None),
             title=map_config.get("sprid", [None])[iax],
         )
 
@@ -210,8 +263,8 @@ def add_map_plot(map_config: dict, map_cb: Any, iax: int, ax, proj=None):
         lvls=getattr(map_cb, "lvls", None)
     )
 
-    info("File to map:")
-    info(str(cfg))
+    print(cfg)
+    print('')
 
     pd = create_plotdata_from_config(cfg)
 
@@ -229,6 +282,12 @@ def add_map_plot(map_config: dict, map_cb: Any, iax: int, ax, proj=None):
         data_max = float(np.nanmax(pd.data_to_plot))
         map_cb.get_lvl([data_min, data_max])
         map_cb.compute_norm()
+        print('')
+        if map_cb.cnorm == "Normalize":
+            info(f" Auto-computed min/max: {data_min} to {data_max}")            
+        else:
+            info(f" Auto-computed levels: {map_cb.lvls}")
+        print('')
 
     artist = pd.plot_map(ax, map_cb, proj=proj)
     pd.add_title(ax)

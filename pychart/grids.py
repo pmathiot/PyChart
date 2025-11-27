@@ -11,7 +11,7 @@ from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
 from scipy.interpolate import griddata
 from typing import Optional, Tuple, Sequence
 
-from .io_utils import get_latlon_var, get_2d_data
+from .io_utils import get_latlon, get_2d_data
 from .log import info, debug
 
 # -----------------------------
@@ -46,23 +46,11 @@ class GridStrategy(abc.ABC):
 
 class StructuredGrid(GridStrategy):
     def load_coords(self, cfg: "DataConfig") -> Tuple[np.ndarray, np.ndarray]:
-        clat, clon = get_latlon_var(cfg.file)
-        lat2d = get_2d_data(cfg.file, clat, offsety=-2)
-        lon2d = get_2d_data(cfg.file, clon, offsety=-2)
-
-        lon2d = lon2d.copy()
-        lon2d[lon2d >= 180] -= 360.0
-
-        delta_lon = np.abs(np.diff(lon2d))
-        if delta_lon.size:
-            for i, start in enumerate(np.argmax(delta_lon > 180, axis=1)):
-                if start > 0:
-                    lon2d[i, start + 1 :] += 360.0
-
+        lon2d, lat2d = get_latlon(cfg.file, offsety=cfg.joffset)
         return lon2d, lat2d
 
     def load_data(self, cfg: "DataConfig") -> np.ndarray:
-        data = get_2d_data(cfg.file, cfg.var, klvl=cfg.jk, ktime=cfg.kt, offsety=-2)
+        data = get_2d_data(cfg.file, cfg.var, klvl=cfg.jk, ktime=cfg.kt, offsety=cfg.joffset)
         return data
 
     def plot_map(self, ax, pd: "PlotData", map_cb, proj=None, **kwargs):
@@ -70,7 +58,7 @@ class StructuredGrid(GridStrategy):
         if data is None or pd.lon is None or pd.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
 
-        info(" Plotting structured pcolor map ...")
+        info("Plotting structured pcolor map ...")
         debug(f" Plotting pcolor map with shape {data.shape}, lon shape {pd.lon.shape}, lat shape {pd.lat.shape}")
 
         if proj is not None:

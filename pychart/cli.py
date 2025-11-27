@@ -140,7 +140,7 @@ def parse_args():
                             help="Box index for subregion: imin imax jmin jmax")
     fig_group.add_argument("--crs", metavar='N', type=int, nargs=1, default=[1],
                            help="Sampling value (every n-th point)")
-    fig_group.add_argument("--joffset", metavar='OFFSET', type=int, nargs=1, default=[0],
+    fig_group.add_argument("--joffset", metavar='OFFSET', type=int, nargs=1, default=[None],
                            help="Offset on j (do not read top j lines, useful for ORCA grids)")
 
     # ------------------------- Bathymetry and Sections -------------------------
@@ -278,6 +278,7 @@ def get_config(args):
             "op": args.maprefop,
             "spfid": args.spfid,
             "sprid": args.sprid,
+            "offsety": args.joffset[0],
         },
         "cnt": {
             "files": args.cntf,
@@ -291,6 +292,7 @@ def get_config(args):
             "z": args.cntz,
             "jk": args.cntjk,
             "levels": args.cntlvl,
+            "offsety": args.joffset[0],
         },
         "cb": {
             "colormap": args.cbn[0],

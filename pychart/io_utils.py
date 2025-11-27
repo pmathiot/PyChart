@@ -70,11 +70,16 @@ def get_latlon(cfile, offsety=None):
     clat, clon = get_latlon_var(cfile)
     lat2d = get_2d_data(cfile, clat, offsety=offsety)
     lon2d = get_2d_data(cfile, clon, offsety=offsety)
-    lon2d[lon2d >= 180] = lon2d[lon2d >= 180.] - 360.
+
+    lon2d = lon2d.copy()
+    lon2d[lon2d >= 180] -= 360.0
+
     delta_lon = np.abs(np.diff(lon2d))
-    for i, start in enumerate(np.argmax(delta_lon > 180, axis=1)):
-        lon2d[i, start + 1:] += 360
-    return lat2d, lon2d
+    if delta_lon.size:
+        for i, start in enumerate(np.argmax(delta_lon > 180, axis=1)):
+            if start > 0:
+                lon2d[i, start + 1 :] += 360.0
+    return lon2d, lat2d
 
 def get_dims(cfile):
     """
@@ -133,7 +138,6 @@ def get_2d_data(cfile, cvar, ktime=0, klvl=0, offsety=None, lmask=True):
 
     if offsety is None:
         offsety = var.sizes.get(next((dim for dim in var.dims if dncdim['y'].match(dim)), 'y'), var.shape[-2])
-    info(f' y-offset for reading data: {offsety}')
 
     if any(dncdim['t'].match(dim) for dim in var.dims):
         var = var.isel({dim: ktime - 1 for dim in var.dims if dncdim['t'].match(dim)})
@@ -146,5 +150,6 @@ def get_2d_data(cfile, cvar, ktime=0, klvl=0, offsety=None, lmask=True):
     ds.close()
 
     debug(f" {cvar} read: shape = {dat2d.shape}")
+    debug(f" offsety = {offsety}")
 
     return dat2d
