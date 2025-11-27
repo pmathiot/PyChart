@@ -66,24 +66,26 @@ class StructuredGrid(GridStrategy):
         return data
 
     def plot_map(self, ax, pd: "PlotData", map_cb, proj=None, **kwargs):
-        if pd.data is None or pd.lon is None or pd.lat is None:
+        data = pd.data_to_plot
+        if data is None or pd.lon is None or pd.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
 
         info(" Plotting structured pcolor map ...")
-        debug(f" Plotting pcolor map with shape {pd.data.shape}, lon shape {pd.lon.shape}, lat shape {pd.lat.shape}")
+        debug(f" Plotting pcolor map with shape {data.shape}, lon shape {pd.lon.shape}, lat shape {pd.lat.shape}")
 
         if proj is not None:
-            pcm = ax.pcolormesh(pd.lon, pd.lat, pd.data,
+            pcm = ax.pcolormesh(pd.lon, pd.lat, data,
                                 cmap=map_cb.cmap, norm=map_cb.norm, transform=ccrs.PlateCarree(),
                                 **kwargs)
         else:
-            pcm = ax.pcolormesh(pd.data, cmap=map_cb.cmap, norm=map_cb.norm, **kwargs)
+            pcm = ax.pcolormesh(data, cmap=map_cb.cmap, norm=map_cb.norm, **kwargs)
         return pcm
 
     def plot_contour(self, ax, pd: "PlotData", levels=10, **kwargs):
-        if pd.data is None or pd.lon is None or pd.lat is None:
+        data = pd.data_to_plot
+        if data is None or pd.lon is None or pd.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
-        cs = ax.contour(pd.lon, pd.lat, pd.data, levels=levels, transform=ccrs.PlateCarree(), **kwargs)
+        cs = ax.contour(pd.lon, pd.lat, data, levels=levels, transform=ccrs.PlateCarree(), **kwargs)
         return cs
 
 # -----------------------------

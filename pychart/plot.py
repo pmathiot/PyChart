@@ -23,6 +23,29 @@ class DataConfig:
     scale: float = 1.0
     title: Optional[str] = None
 
+    # internal cached data (not part of init / repr)
+    _data: Optional[np.ndarray] = dataclasses.field(default=None, init=False, repr=False)
+
+    def load(self, grid: GridStrategy) -> np.ndarray:
+        """Load and cache the raw data array using provided grid strategy.
+        This method will call `grid.load_data(self)`. It is idempotent.
+        """
+        if self._data is None:
+            info(f"Loading data for file={self.file} var={self.var} jk={self.jk} kt={self.kt}")
+            self._data = grid.load_data(self)
+        else:
+            debug(f"Using cached data for {self.file}:{self.var}")
+        return self._data
+
+    @property
+    def data(self) -> np.ndarray:
+        """Return cached data. Raise if not loaded yet (explicit is better).
+        Use `load(grid)` to populate the cache before accessing.
+        """
+        if self._data is None:
+            raise RuntimeError("Data not loaded: call load(grid) first")
+        return self._data
+
 # -----------------------------
 # PlotConfig: a plot may involve a run + optional reference
 # -----------------------------
@@ -39,60 +62,85 @@ class PlotConfig:
 # -----------------------------
 
 class PlotData:
+    """Orchestrates coordinates and data used for plotting.
+
+    Attributes:
+    cfg: PlotConfig
+    grid: GridStrategy
+    lon, lat: coordinates
+    data_to_plot: final array to be used by plotting backends (after scaling/refop)
+    """
+
     def __init__(self, cfg: PlotConfig, grid: GridStrategy):
         self.cfg = cfg
         self.grid = grid
 
         self.lon: Optional[np.ndarray] = None
         self.lat: Optional[np.ndarray] = None
-        self.data: Optional[np.ndarray] = None
-        self.dataref: Optional[np.ndarray] = None
-        self.tri: Optional[np.ndarray] = None
+
+        # final data for plotting (run scaled / run - ref / run / ref)
+        self.data_to_plot: Optional[np.ndarray] = None
 
     def load(self):
+        """Load coordinates and underlying raw datasets (lazy DataConfig.load used).
+        Assumes run (and ref if provided) share same grid.
+        """
         info(" Loading coordinates and data ...")
 
-        # load coords from run (ref supposed to share same grid)
-        print(self.cfg.run)
+        # coords from run (ref supposed to share same grid)
         self.lon, self.lat = self.grid.load_coords(self.cfg.run)
 
-        # load main field
-        print('TOTO : ',self.cfg.run)
-        self.data = self.grid.load_data(self.cfg.run)
+        # Load run data
+        self.cfg.run.load(self.grid)
 
-        # load reference
-        if self.cfg.ref.file and self.cfg.ref.var:
-            self.dataref = self.grid.load_data(self.cfg.ref)
+        # Load reference data if present
+        if self.cfg.ref is not None:
+            # defensive check: ensure ref has values
+            if not getattr(self.cfg.ref, 'file', None) or not getattr(self.cfg.ref, 'var', None):
+                info("Reference config present but missing file/var — skipping ref load")
+            else:
+                self.cfg.ref.load(self.grid)
 
     def compute(self):
+        """Compute `data_to_plot` from run and optional reference according to refop.
+        Applies scales (DataConfig.scale) to each input.
+        """
         info(" Computing data ...")
 
-        if self.cfg.ref and self.cfg.refop:
+        if self.cfg.ref is not None and self.cfg.refop is not None:
+            run_arr = self.cfg.run.data
+            ref_arr = self.cfg.ref.data
             op = self.cfg.refop
+
             if op == "-":
-                self.data = (
-                    self.cfg.run.scale * self.data
-                    - self.cfg.ref.scale * self.dataref
-                )
+                self.data_to_plot = (self.cfg.run.scale * run_arr) - (self.cfg.ref.scale * ref_arr)
             elif op == "/":
-                self.data = (
-                    self.cfg.run.scale * self.data
-                    / (self.cfg.ref.scale * self.dataref)
-                )
+                # avoid division by zero
+                denom = (self.cfg.ref.scale * ref_arr)
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    self.data_to_plot = (self.cfg.run.scale * run_arr) / denom
             else:
                 raise ValueError(f"Unsupported refop: {op}")
         else:
-            self.data = self.data * self.cfg.run.scale
+            # simple scaled run data
+            self.data_to_plot = self.cfg.run.data * self.cfg.run.scale
 
     def plot_map(self, ax, map_cb, proj=None, **kwargs):
+        """Delegate plotting to grid implementation using data_to_plot."""
+        if self.data_to_plot is None:
+            raise RuntimeError("data_to_plot not computed — call load() and compute() first")
         return self.grid.plot_map(ax, self, map_cb, proj=proj, **kwargs)
 
     def plot_contour(self, ax, levels=10, **kwargs):
+        if self.data_to_plot is None:
+            raise RuntimeError("data_to_plot not computed — call load() and compute() first")
         return self.grid.plot_contour(ax, self, levels=levels, **kwargs)
 
     def add_title(self, ax):
-        if self.cfg.ref and self.cfg.refop:
-            ax.set_title(f"{self.cfg.run.title} {self.cfg.refop} {self.cfg.ref.title}")
+        if self.cfg.ref is not None and self.cfg.refop is not None:
+            left = self.cfg.run.title or self.cfg.run.var
+            right = self.cfg.ref.title or self.cfg.ref.var
+            ax.set_title(f"{left} {self.cfg.refop} {right}")
         else:
             ax.set_title(self.cfg.run.title or self.cfg.run.var)
 
@@ -173,9 +221,13 @@ def add_map_plot(map_config: dict, map_cb: Any, iax: int, ax, proj=None):
     pd.load()
     pd.compute()
 
+    # handle levels on the callback if needed
     lvls = getattr(map_cb, "lvls", None)
     if lvls is None or any(v is None for v in lvls):
-        map_cb.get_lvl([float(np.nanmin(pd.data)), float(np.nanmax(pd.data))])
+        # compute from final data_to_plot
+        data_min = float(np.nanmin(pd.data_to_plot))
+        data_max = float(np.nanmax(pd.data_to_plot))
+        map_cb.get_lvl([data_min, data_max])
         map_cb.compute_norm()
 
     artist = pd.plot_map(ax, map_cb, proj=proj)
