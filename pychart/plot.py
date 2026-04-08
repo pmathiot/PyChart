@@ -9,6 +9,7 @@ import xarray as xr
 
 from .log import info, debug
 from .grids import StructuredGrid, TriGrid, IcoGrid, GridStrategy
+from .fig_utils import get_lvls
 
 # -----------------------------
 # DataConfig: describes a single dataset (run or ref)
@@ -18,7 +19,7 @@ from .grids import StructuredGrid, TriGrid, IcoGrid, GridStrategy
 class DataConfig:
     def __str__(self):
         lines = []
-        lines.append("PlotData:")
+        lines.append("DataConfig:")
         lines.append(f"    files    : {self.file}")
         lines.append(f"    vars     : {self.var}")
         lines.append(f"    jk, kt   : {self.jk}, {self.kt}")
@@ -116,8 +117,11 @@ class PlotData:
         
         # --- Loaded status
         lines.append(f"  lon/lat     : {'loaded' if self.lon is not None else 'not loaded'}")
-        lines.append(f"  data        : {'loaded' if self.data is not None else 'not loaded'}")
-        lines.append(f"  dataref     : {'loaded' if self.dataref is not None else 'not loaded'}")
+        lines.append(f"  data        : {'loaded' if self.cfg.run.data is not None else 'not loaded'}")
+        if self.cfg.ref is not None:
+            lines.append(f"  dataref     : {'loaded' if self.cfg.ref.data is not None else 'not loaded'}")
+        else:
+            lines.append(f"  dataref     : not loaded")
 
         return "\n".join(lines)
     
@@ -135,7 +139,7 @@ class PlotData:
         """Load coordinates and underlying raw datasets (lazy DataConfig.load used).
         Assumes run (and ref if provided) share same grid.
         """
-        info(" Loading coordinates and data ...")
+        info("Loading coordinates and data ...")
 
         # coords from run (ref supposed to share same grid)
         self.lon, self.lat = self.grid.load_coords(self.cfg.run)
@@ -156,7 +160,7 @@ class PlotData:
         Applies scales (DataConfig.scale) to each input.
         """
         print('')
-        info(" Computing data ...")
+        info("Computing data ...")
 
         if self.cfg.ref is not None and self.cfg.refop is not None:
             run_arr = self.cfg.run.data
@@ -180,6 +184,8 @@ class PlotData:
         """Delegate plotting to grid implementation using data_to_plot."""
         if self.data_to_plot is None:
             raise RuntimeError("data_to_plot not computed — call load() and compute() first")
+        print('')
+        info("Plotting map ...")
         return self.grid.plot_map(ax, self, map_cb, proj=proj, **kwargs)
 
     def plot_contour(self, ax, levels=10, **kwargs):
@@ -191,9 +197,9 @@ class PlotData:
         if self.cfg.ref is not None and self.cfg.refop is not None:
             left = self.cfg.run.title or self.cfg.run.var
             right = self.cfg.ref.title or self.cfg.ref.var
-            ax.set_title(f"{left} {self.cfg.refop} {right}")
+            ax.set_title(f"{left} {self.cfg.refop} {right}", fontsize=16)
         else:
-            ax.set_title(self.cfg.run.title or self.cfg.run.var)
+            ax.set_title(self.cfg.run.title or self.cfg.run.var, fontsize=16)
 
 # -----------------------------
 # Grid detection
@@ -262,7 +268,7 @@ def add_map_plot(map_config: dict, map_cb: Any, iax: int, ax, proj=None):
         refop=map_config.get("op", [None])[iax],
         lvls=getattr(map_cb, "lvls", None)
     )
-
+    print('--------- Add Colormap ---------')
     print(cfg)
     print('')
 
@@ -288,7 +294,7 @@ def add_map_plot(map_config: dict, map_cb: Any, iax: int, ax, proj=None):
         else:
             info(f" Auto-computed levels: {map_cb.lvls}")
         print('')
-
+    
     artist = pd.plot_map(ax, map_cb, proj=proj)
     pd.add_title(ax)
     return artist
@@ -305,7 +311,7 @@ def add_cnt_plot(cnt_config: dict, iax: int, ax):
     )
 
     ref_cfg = None
-    if cnt_config.get("refs"):
+    if cnt_config.get("refs")[iax]:
         ref_cfg = DataConfig(
             file=cnt_config["refs"][iax],
             var=cnt_config["ref_vars"][iax],
@@ -321,13 +327,20 @@ def add_cnt_plot(cnt_config: dict, iax: int, ax):
         lvls=cnt_config.get("levels")
     )
 
+    if cfg.lvls:
+        cfg.lvls = get_lvls(cfg.lvls)
+    else:
+        cfg.lvls = np.linspace(float(pd.data.min()), float(pd.data.max()), 10)
+    
+    print('')
+    print('--------- Add Contours ---------')
+    print(cfg)
+    print('')
+
     pd = create_plotdata_from_config(cfg)
+
     pd.load()
+
     pd.compute()
 
-    if cfg.lvls:
-        levels = cfg.lvls
-    else:
-        levels = np.linspace(float(pd.data.min()), float(pd.data.max()), 10)
-
-    return pd.plot_contour(ax, levels=levels, colors='k', linewidths=1)
+    return pd.plot_contour(ax, levels=cfg.lvls, colors='k', linewidths=1)

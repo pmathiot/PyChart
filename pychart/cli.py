@@ -359,6 +359,7 @@ def main():
     fb.add_colorbar(pcol, map_cb)
 
     fb.save_figure()
-
+    print('')
     info(f"Display figure ...")
+    print('')
     plt.show()

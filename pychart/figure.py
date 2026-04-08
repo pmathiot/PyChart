@@ -35,7 +35,6 @@ class FigureBuilder:
         # Title
         if "title" in self.config:
             lines.append(f"  Title       : {self.config['title']}")
-        lines.append("")
 
         return "\n".join(lines)
     
@@ -181,9 +180,10 @@ class FigureBuilder:
     def _add_title(self, title, yoffset=0.05, height=0.02):
         boxxy = self._get_figure_bounds()
         cax = plt.axes([boxxy[0], boxxy[3] + yoffset, boxxy[2]-boxxy[0], height])
-        cax.text(0.5, 0.5, title, ha='center', va='bottom', fontsize=20)
+        cax.text(0.5, 0.5, title, ha='center', va='bottom', fontsize=18)
         cax.axis('off')
 
     def save_figure(self):
+        print('')
         info(f"Saving figure to {self.output_file}")
         self.fig.savefig(self.output_file, dpi=150)

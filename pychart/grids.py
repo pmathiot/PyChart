@@ -11,7 +11,7 @@ from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
 from scipy.interpolate import griddata
 from typing import Optional, Tuple, Sequence
 
-from .io_utils import get_latlon, get_2d_data
+from .io_utils import get_latlon, get_latlon_var, get_2d_data, get_name
 from .log import info, debug
 
 # -----------------------------
@@ -59,7 +59,7 @@ class StructuredGrid(GridStrategy):
             raise ValueError("Data and coordinates must be loaded before plotting.")
 
         info("Plotting structured pcolor map ...")
-        debug(f" Plotting pcolor map with shape {data.shape}, lon shape {pd.lon.shape}, lat shape {pd.lat.shape}")
+        debug(f"Plotting pcolor map with shape {data.shape}, lon shape {pd.lon.shape}, lat shape {pd.lat.shape}")
 
         if proj is not None:
             pcm = ax.pcolormesh(pd.lon, pd.lat, data,
@@ -83,16 +83,17 @@ class StructuredGrid(GridStrategy):
 class TriGrid(GridStrategy):
     """Triangular unstructured grid strategy."""
 
-    def load_coords(self, cfg: "PlotConfig") -> Tuple[np.ndarray, np.ndarray]:
+    def load_coords(self, cfg: "DataConfig") -> Tuple[np.ndarray, np.ndarray]:
         ds = xr.open_dataset(cfg.file)
         try:
-            lon = ds['lon'].values
-            lat = ds['lat'].values
+            clat, clon = get_latlon_var(cfg.file)
+            lon = ds[clon].values
+            lat = ds[clat].values
         finally:
             ds.close()
         return lon, lat
 
-    def load_data(self, cfg: "PlotConfig") -> np.ndarray:
+    def load_data(self, cfg: "DataConfig") -> np.ndarray:
         ds = xr.open_dataset(cfg.file)
         try:
             data = ds[cfg.var].isel(time=cfg.kt - 1).values
@@ -103,17 +104,18 @@ class TriGrid(GridStrategy):
     def _load_extra(self, cfg: "PlotConfig") -> np.ndarray:
         ds = xr.open_dataset(cfg.file)
         try:
-            triangles = ds['triangles'].values
+            ctriangles = get_name("(.*_face_nodes)", ds.variables.keys())
+            triangles = ds[ctriangles].values
         finally:
             ds.close()
         return triangles
 
     def plot_map(self, ax, pd: "PlotData", map_cb, proj=None, **kwargs):
-        if pd.data is None or pd.lon is None or pd.lat is None:
+        if pd.data_to_plot is None or pd.lon is None or pd.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
 
         if getattr(pd, 'tri', None) is None:
-            pd.tri = self._load_extra(pd.cfg)
+            pd.tri = self._load_extra(pd.cfg.run)
 
         xy = ax.projection.transform_points(ccrs.Geodetic(), pd.lon, pd.lat)
         x, y = xy[:, 0], xy[:, 1]
@@ -129,17 +131,17 @@ class TriGrid(GridStrategy):
         triang = mtri.Triangulation(x, y, pd.tri)
         triang.set_mask(seam_mask)
 
-        plot_data = pd.elemental_to_nodal(tri=pd.tri) if len(pd.data) == len(pd.tri) else pd.data
+        plot_data = pd.data_to_plot
 
-        pcm = ax.tripcolor(triang, plot_data, cmap=map_cb.cmap, norm=map_cb.norm, rasterized=True, **kwargs)
+        pcm = ax.tripcolor(x, y, pd.tri[seam_mask==False], plot_data[seam_mask==False], cmap=map_cb.cmap, norm=map_cb.norm, rasterized=True, **kwargs)
         return pcm
 
     def plot_contour(self, ax, pd: "PlotData", levels=10, **kwargs):
-        if pd.data is None or pd.lon is None or pd.lat is None:
+        if pd.data_to_plot is None or pd.lon is None or pd.lat is None:
             raise ValueError("Data and coordinates must be loaded before plotting.")
 
         if getattr(pd, 'tri', None) is None:
-            pd.tri = self._load_extra(pd.cfg)
+            pd.tri = self._load_extra(pd.cfg.run)
 
         xy = ax.projection.transform_points(ccrs.Geodetic(), pd.lon, pd.lat)
         x, y = xy[:, 0], xy[:, 1]
@@ -155,10 +157,30 @@ class TriGrid(GridStrategy):
         triang = mtri.Triangulation(x, y, pd.tri)
         triang.set_mask(seam_mask)
 
-        data_nodal = pd.elemental_to_nodal(tri=pd.tri) if len(pd.data) == len(pd.tri) else pd.data
+        data_nodal = self.elemental_to_nodal(pd) if len(pd.data_to_plot) == len(pd.tri) else pd.data_to_plot
 
-        cs = ax.tricontour(triang, data_nodal, levels=levels, **kwargs)
+        cs = ax.tricontour(x, y, pd.tri[seam_mask==False], data_nodal, levels=levels, **kwargs)
         return cs
+
+    def elemental_to_nodal(self,pd):
+        """ 
+        Convert elemental (triangle-centered) data to nodal (vertex) data.
+
+        Returns:
+        - numpy.ndarray: Data values at each node (averaged from connected triangles).
+        """ 
+        n_nodes = pd.tri.max() + 1  # because node is 0 based
+        nodal_sum = np.zeros(n_nodes)
+        nodal_count = np.zeros(n_nodes)
+
+        for i, tri in enumerate(pd.tri):
+            for node in tri:
+                nodal_sum[node] += pd.data_to_plot[i]
+                nodal_count[node] += 1
+
+        nodal_data = nodal_sum / nodal_count
+        return nodal_data
+
 
 # -----------------------------
 # Icosaheral grid

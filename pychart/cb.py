@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import sys
 from .log import info
+from .fig_utils import get_lvls
 
 import cmocean
 
@@ -119,19 +120,5 @@ class cb:
         if self.cnorm == 'TwoSlopeNorm':
                 lvl=[bnds[0],bnds[2],bnds[1]]
         else:
-            if len(bnds)==2:
-                lvlmin = bnds[0]
-                lvlmax = bnds[1]
-                lvl=np.linspace(lvlmin, lvlmax, num=10)
-            elif len(bnds)==3 :
-                lvlmin = bnds[0]
-                lvlmax = bnds[1]
-                lvlint = bnds[2]
-                lvlmax = lvlmin+round((lvlmax-lvlmin)/lvlint)*lvlint
-                lvl= np.arange(lvlmin,lvlmax+0.000001,lvlint)
-            elif len(bnds) > 3:
-                lvl=np.array(bnds[:])
-            else:
-                print(' Need definition of levels (min,max) at least.')
-                sys.exit(42)
+            lvl=get_lvls(bnds)
         self.lvls=lvl

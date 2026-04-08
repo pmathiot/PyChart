@@ -51,8 +51,8 @@ def get_latlon_var(cfile):
     - tuple: Names of the latitude and longitude variables.
     """
     ds = xr.open_dataset(cfile)
-    clon = get_name("(glamt|nav_lon.*|lon|longitude)", ds.variables.keys())
-    clat = get_name("(gphit|nav_lat.*|lat|latitude)", ds.variables.keys())
+    clon = get_name("(glamt|nav_lon.*|lon|longitude|.*_node_x)", ds.variables.keys())
+    clat = get_name("(gphit|nav_lat.*|lat|latitude|.*_node_y)", ds.variables.keys())
     ds.close()
     return clat, clon
 
