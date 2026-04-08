@@ -18,6 +18,15 @@ import sys
 from .log import debug, info
 
 # ================================= NETCDF ===============================
+def get_time_dim(ds):
+    regex=re.compile(r"\b(t|tim|time_counter|time)\b", re.I)
+    for dim in ds.dims:
+        if regex.match(dim):
+            print(dim+' found')
+            return dim
+    print('No time dimension founds, exit 42')
+    sys.exit(42)
+
 def get_name(regex, varlst):
     """
     Matches a regex pattern to a list of variable names.

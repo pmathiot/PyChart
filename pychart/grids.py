@@ -11,7 +11,7 @@ from cartopy.crs import Stereographic, NorthPolarStereo, SouthPolarStereo
 from scipy.interpolate import griddata
 from typing import Optional, Tuple, Sequence
 
-from .io_utils import get_latlon, get_latlon_var, get_2d_data, get_name
+from .io_utils import get_latlon, get_latlon_var, get_2d_data, get_name, get_time_dim
 from .log import info, debug
 
 # -----------------------------
@@ -192,10 +192,9 @@ class IcoGrid(GridStrategy):
     def load_coords(self, cfg: "PlotConfig") -> Tuple[np.ndarray, np.ndarray]:
         ds = xr.open_dataset(cfg.file)
         try:
-            lon = ds['lon'].values
-            lat = ds['lat'].values
-            bnds_lon = ds['bounds_lon'].values
-            bnds_lat = ds['bounds_lat'].values
+            clat, clon = get_latlon_var(cfg.file)
+            lon = ds[clon].values
+            lat = ds[clat].values
         finally:
             ds.close()
         return lon, lat
@@ -203,7 +202,8 @@ class IcoGrid(GridStrategy):
     def load_data(self, cfg: "PlotConfig") -> np.ndarray:
         ds = xr.open_dataset(cfg.file)
         try:
-            data = ds[cfg.var].isel(time=cfg.kt - 1).values
+            cdim=get_time_dim(ds)
+            data = ds[cfg.var].isel({cdim: cfg.kt - 1}).values
         finally:
             ds.close()
         return data
@@ -218,11 +218,11 @@ class IcoGrid(GridStrategy):
         return bnds_lon, bnds_lat
 
     def plot_map(self, ax, pd: "PlotData", map_cb, proj=None, **kwargs):
-        if pd.data is None:
+        if pd.data_to_plot is None:
             raise ValueError("Data must be loaded before plotting.")
 
         if getattr(pd, 'bnds_lon', None) is None or getattr(pd, 'bnds_lat', None) is None:
-            pd.bnds_lon, pd.bnds_lat = self._load_bounds(pd.cfg)
+            pd.bnds_lon, pd.bnds_lat = self._load_bounds(pd.cfg.run)
 
         xy = ax.projection.transform_points(ccrs.Geodetic(), pd.bnds_lon, pd.bnds_lat)
         x = xy[:, :, 0]
@@ -251,7 +251,7 @@ class IcoGrid(GridStrategy):
 
         indices = np.where(final_mask)[0]
         polys_visible = [list(zip(x[i, :], y[i, :])) for i in indices]
-        data_visible = pd.data[indices]
+        data_visible = pd.data_to_plot[indices]
 
         collection = PolyCollection(polys_visible, array=data_visible, cmap=map_cb.cmap, norm=map_cb.norm,
                                     edgecolor='k', linewidth=0.1, rasterized=True)
@@ -264,7 +264,7 @@ class IcoGrid(GridStrategy):
 
         lon = pd.lon
         lat = pd.lat
-        data = pd.data
+        data = pd.data_to_plot
 
         lon_min, lon_max, lat_min, lat_max = ax.get_extent(crs=ccrs.PlateCarree())
         visible_mask = (
