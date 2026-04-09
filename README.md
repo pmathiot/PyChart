@@ -1,6 +1,12 @@
 # PyChart
 PyChart is a tool to map from netcdf output.
 
+## Instalation
+Add the path to PyChart to the PYTHONPATH:
+```
+PYTHONPATH="${PYTHONPATH}:/path/to/dir/where/PyChart/is/
+```
+
 ## Example output
 Below you can find an exemple of the kind of output from PyChart:
 
@@ -9,7 +15,7 @@ Below you can find an exemple of the kind of output from PyChart:
 The command line to produce this plot is:
 
 ```
-python ~/GIT/PyChart/pychart.py \
+python -m PyChart.pychart \
    --ft 'BSF (OPM006)' \
    --spfid '1979-1988'                            '1989-1998'                           '1999-2008'                            '2009-2018'                         \
    --mapf eORCA025.L121-OPM006_10y_y1979_psi.nc eORCA025.L121-OPM006_10y_y1989_psi.nc eORCA025.L121-OPM006_10y_y1999_psi.nc eORCA025.L121-OPM006_10y_y2009_psi.nc  \

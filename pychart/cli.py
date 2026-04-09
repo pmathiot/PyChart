@@ -95,11 +95,11 @@ def parse_args():
     cnt_group = parser.add_argument_group("Contour options")
     cnt_group.add_argument("--cntf", metavar='FILES', type=str, nargs='+',
                            help="Contour data files")
-    cnt_group.add_argument("--cntv", metavar='VARS', type=str, nargs=1,
+    cnt_group.add_argument("--cntv", metavar='VARS', type=str, nargs='+',
                            help="Contour variable")
-    cnt_group.add_argument("--cntreff", metavar='REF_FILES', type=str, nargs=1,
+    cnt_group.add_argument("--cntreff", metavar='REF_FILES', type=str, nargs='+',
                            help="Reference contour file")
-    cnt_group.add_argument("--cntrefv", metavar='REF_VARS', type=str, nargs=1,
+    cnt_group.add_argument("--cntrefv", metavar='REF_VARS', type=str, nargs='+',
                            help="Reference contour variable")
     cnt_group.add_argument("--cntrefop", metavar='REF_OP', type=str, nargs=1, default=[None],
                            choices=[None,'-','/'], help="Operation for contour comparison")
@@ -343,6 +343,9 @@ def main():
     
     # --- Loop through subplots ---
     for iax, ax in enumerate(fb.axes):
+        print('')
+        print('=======================================================')
+        print('')
         info(f"Processing subplot {iax+1}/{len(fb.axes)}")
         print()
         # MAP
@@ -357,7 +360,10 @@ def main():
 
     # --- Add colorbar using the class method ---
     fb.add_colorbar(pcol, map_cb)
-
+    
+    # finalise figure
+    print('')
+    print('=======================================================')
     fb.save_figure()
     print('')
     info(f"Display figure ...")

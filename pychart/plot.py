@@ -191,6 +191,8 @@ class PlotData:
     def plot_contour(self, ax, levels=10, **kwargs):
         if self.data_to_plot is None:
             raise RuntimeError("data_to_plot not computed — call load() and compute() first")
+        print('')
+        info("Plotting cnt ...")
         return self.grid.plot_contour(ax, self, levels=levels, **kwargs)
 
     def add_title(self, ax):
