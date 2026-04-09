@@ -1,14 +1,17 @@
 name: pychart
 channels:
   - defaults
+  - conda-forge
 dependencies:
-  - python=3.7.4
-  - cartopy
-  - numpy
+  - python=3.13
   - matplotlib
+  - numpy
+  - xarray
   - netcdf4
+  - cartopy
+  - pyproj
+  - cmocean
+  - dask
+  - scipy
   - pytest
   - pylint
-  - pip
-  - pip:
-     seawater

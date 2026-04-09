@@ -40,28 +40,31 @@ python -m PyChart.pychart \
 
 ## Requirement
 
-PyChart is tested with this conda environement (environment.yml):
+PyChart is tested with this conda environement (pychart_env.yml):
 ```
-name: PyChart
+name: pychart
 channels:
   - defaults
+  - conda-forge
 dependencies:
-  - python=3.7.4
-  - cartopy
-  - gsw
-  - scipy
-  - netcdf4
-  - dask
+  - python=3.13
+  - matplotlib
+  - numpy
   - xarray
-  - jupyter
-  - seawater
+  - netcdf4
+  - cartopy
+  - pyproj
+  - cmocean
+  - dask
+  - scipy
+  - pytest
+  - pylint
 ```
 
 This environement can be created via this command:
 ```
-conda env create -f environment.yml
+conda env create -f pychart_env.yml
 ```
-with environment.yml being the environement file described above.
 
 ## Usage
 
