@@ -1,10 +1,18 @@
 # PyChart
-PyChart is a tool to map from netcdf output.
+PyChart is a tool to map from netcdf output. I manage gridded outputs from NEMO (or other gridded output), unstructured grid from Elmer/Ice outpus and ico-lmdz outputs.
 
 ## Instalation
-Add the path to PyChart to the PYTHONPATH:
+- Clone this github repository
+```
+git clone https://github.com/pmathiot/PyChart.git
+```
+- Add the path to PyChart (ie `pwd`) to the PYTHONPATH:
 ```
 PYTHONPATH="${PYTHONPATH}:/path/to/dir/where/PyChart/is/
+```
+- Create your conda env:
+```
+conda env create -f pychart-env.yml
 ```
 
 ## Example output
